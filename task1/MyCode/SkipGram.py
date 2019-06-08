@@ -22,15 +22,14 @@ def word2vec():
         raw_data = f.read()
         raw_data = raw_data.split()
     print("Data size", len(raw_data))
-    count = []
+    count = [('UNK', -1)]
     count.extend(collections.Counter(raw_data).most_common(config.vocab_size))
     for word, _ in count:
         word2idx[word] = len(word2idx)
     idx2word = {idx: word for word, idx in zip(word2idx.keys(), word2idx.values())}
     data = []
     for word in raw_data:
-        idx = word2idx.get(word, 0)
-        data.append(idx)
+        data.append(word2idx.get(word, 0))
     print("Dataset preparation done")
 
     def generate_batch(batch_size=config.batch_size, window_size=config.window_size):
@@ -65,7 +64,7 @@ def word2vec():
             validate_inputs = tf.constant(valid_examples, dtype=tf.int32)
         with tf.name_scope('vector_as_center_word'):
             center_vec = tf.Variable(name='Vi',
-                                     initial_value=tf.random.uniform([config.vocab_size, config.embedding_size], -1.0, 1.0))
+                                     initial_value=tf.random_uniform([config.vocab_size, config.embedding_size], -1.0, 1.0))
             center_vec_embedding = tf.nn.embedding_lookup(center_vec, train_inputs)
         if config.has_Vo:
             with tf.name_scope('vector_as_context_word'):
