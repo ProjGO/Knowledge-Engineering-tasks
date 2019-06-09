@@ -6,18 +6,24 @@ class Dataset:
     label2idx = {"O": 0, "B-ORG": 1, "I-ORG": 2, "B-PER": 3, "I-PER": 4,
                  "B-LOC": 5, "I-LOC": 6, "B-MISC": 7, "I-MISC": 8}
     idx2label = {idx: label for idx, label in zip(label2idx.keys(), label2idx.values())}
+    char2idx = {}
+    for i in range(26):
+        char2idx[chr(ord('a')+i)] = len(char2idx)
+    for i in range(26):
+        char2idx[chr(ord('A') + i)] = len(char2idx)
+    sentences = []  # 列表的列表,里面的每个列表是一句话,再里面是每个单词
+    labels = []  # 列表的列表，对应着句子中的标签
+    idxed_sentences = []  # 将单词转换为输入embedding中的索引后的句子
+    idxed_labels = []  # 转换为对应编号后的标签
+    embeddings = {}  # 预训练的word embedding, 格式word:vec,第一个是UNK(所有在embedding中找不到的都认为是UNK)
+    word2idx = {}  # word:index
+    idx2word = {}  # index:word
+    sentences_cnt = 0  # 一共有几句话
+    word_cnt = 0  # 一共有几个词
 
     def __init__(self, dataset_path, name="dataset"):
         self.name = name  # 数据集名称(train/validate/test)
-        self.sentences = []  # 列表的列表,里面的每个列表是一句话,再里面是每个单词
-        self.labels = []  # 列表的列表，对应着句子中的标签
-        self.idxed_sentences = []  # 将单词转换为输入embedding中的索引后的句子
-        self.idxed_labels = []  # 转换为对应编号后的标签
-        self.embeddings = {}  # 预训练的word embedding, 格式word:vec,第一个是UNK(所有在embedding中找不到的都认为是UNK)
-        self.word2idx = {}  # word:index
-        self.idx2word = {}  # index:word
-        self.sentences_cnt = 0  # 一共有几句话
-        self.word_cnt = 0  # 一共有几个词
+
         sentence_buffer = []
         label_buffer = []
         with open(dataset_path, 'r') as f:
