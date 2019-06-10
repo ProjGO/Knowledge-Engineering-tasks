@@ -1,4 +1,3 @@
-import os
 import pickle
 
 
@@ -11,9 +10,9 @@ class Dataset:
     for i in range(256):
         char2idx[chr(ord(ch)+i)] = len(char2idx)
     sentences = []  # 列表的列表,里面的每个列表是一句话,再里面是每个单词
-    labels = []  # 列表的列表，对应着句子中的标签
     idxed_sentences = []  # 将单词转换为输入embedding中的索引后的句子
-    char_idxed_sentences = []
+    char_idxed_sentences = []  # 将单词拆成字符编码表示
+    labels = []  # 列表的列表，对应着句子中的标签
     idxed_labels = []  # 转换为对应编号后的标签
     embeddings = {}  # 预训练的word embedding, 格式word:vec,第一个是UNK(所有在embedding中找不到的都认为是UNK)
     word2idx = {}  # word:index
@@ -58,10 +57,10 @@ class Dataset:
             for word in self.embeddings.keys():
                 self.word2idx[word] = len(self.word2idx)
             self.idx2word = {idx: word for word, idx in zip(self.word2idx.keys(), self.word2idx.values())}
-            cur_sentence = []
-            cur_label = []
             UNK_cnt = 0
             for sentence, labels in zip(self.sentences, self.labels):
+                cur_sentence = []
+                cur_label = []
                 for word in sentence:
                     word = word.lower()  # word embedding中的所有词都是小写
                     idx = self.word2idx.get(word, 0)  # 如果找不到返回0,0就是UNK
@@ -70,6 +69,8 @@ class Dataset:
                         UNK_cnt += 1
                 for label in labels:
                     cur_label.append(self.label2idx[label])
+                self.idxed_sentences.append(cur_sentence)
+                self.idxed_labels.append(cur_label)
             print("converted words, labels to indexes, %d unknown words in %s" % (UNK_cnt, self.name))
 
     def convert_char_to_idx(self):
@@ -82,15 +83,20 @@ class Dataset:
                 sentence_buffer.append(word_buffer)
             self.char_idxed_sentences.append(sentence_buffer)
 
-    def generate_batch(self):
-        pass
-
-
-
-
-
-
-
-
-
-
+    '''
+    has_one_epoch: 是否走完了一个epoch
+    batch_data: [(单词编号,[该单词每个字母的编号]),...]
+    batch_label: [标签编号]
+    '''
+    def get_one_batch(self):
+        has_one_epoch = False
+        batch_data = []
+        batch_label = []
+        for i in range(self.batch_size):
+            batch_data.append(list(zip(self.idxed_sentences[self.cur_idx], self.char_idxed_sentences[self.cur_idx])))
+            batch_label.append(self.idxed_labels[self.cur_idx])
+            self.cur_idx = self.cur_idx + 1
+            if self.cur_idx == self.sentences_cnt - 1:
+                has_one_epoch = True
+                self.cur_idx = 0
+        return has_one_epoch, batch_data, batch_label
