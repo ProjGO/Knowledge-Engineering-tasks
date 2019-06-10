@@ -1,4 +1,5 @@
 import pickle
+import numpy as np
 
 
 class Dataset:
@@ -85,8 +86,8 @@ class Dataset:
 
     '''
     has_one_epoch: 是否走完了一个epoch
-    batch_data: [(单词编号,[该单词每个字母的编号]),...]
-    batch_label: [标签编号]
+    batch_data: [[(单词编号,[该单词每个字母的编号]),...(一句话的每个词)],...(这个batch中的每一句话)]
+    batch_label: [[标签编号,...(一句话中每个词的标签)],...(这个batch中的每一句话)]
     '''
     def get_one_batch(self):
         has_one_epoch = False
@@ -100,3 +101,9 @@ class Dataset:
                 has_one_epoch = True
                 self.cur_idx = 0
         return has_one_epoch, batch_data, batch_label
+
+    '''
+    返回词的向量表示,可用于创建用来查询的tf.Variable
+    '''
+    def get_embedding(self):
+        return np.array(list(self.embeddings.values()), dtype=np.float)

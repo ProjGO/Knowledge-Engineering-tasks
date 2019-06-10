@@ -115,7 +115,7 @@ def word2vec():
     validate_freq = 10000
 
     with tf.Session(graph=graph) as sess:
-        has_ckpt, log_dir = config.get_output_dir()
+        has_ckpt, log_dir = config.get_log_dir()
         writer = tf.summary.FileWriter(log_dir, sess.graph)
         if has_ckpt:
             saver.restore(sess, tf.train.latest_checkpoint(log_dir))
@@ -160,7 +160,7 @@ def word2vec():
             vec_list.append(final_embedding[i])
             word_list.append(idx2word[i])
         embedding_dict = {word: vec for word, vec in zip(word_list, vec_list)}
-        with open(os.path.join(log_dir, 'word2vec_%d.pkl' % num_steps), 'wb') as f:
+        with open(os.path.join(config.get_embedding_output_dir(), 'word2vec_%d.pkl' % num_steps), 'wb') as f:
             pickle.dump(embedding_dict, f, pickle.HIGHEST_PROTOCOL)
 
         config.write_config(cur_step, cur_epoch)
@@ -184,7 +184,7 @@ def word2vec():
             ha='right',
             va='bottom'
         )
-    plt.savefig(os.path.join(config.dir_output, 'tsne_%d.png' % num_steps))
+    plt.savefig(os.path.join(config.log_dir, 'tsne_%d.png' % num_steps))
 
 
 def main(argv):
