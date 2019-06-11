@@ -23,7 +23,7 @@ class Dataset:
 
     cur_idx = 0  # 下一个batch的开始是哪一句(sentences中的下标)
 
-    def __init__(self, dataset_path, vocab_path, batch_size=100, name="dataset"):
+    def __init__(self, dataset_path, vocab_path, batch_size=10, name="dataset"):
         self.name = name  # 数据集名称(train/validate/test)
         self.batch_size = batch_size
 
@@ -100,6 +100,7 @@ class Dataset:
             if self.cur_idx == self.sentences_cnt - 1:
                 has_one_epoch = True
                 self.cur_idx = 0
+        self.get_padded_batch(batch_data)
         return has_one_epoch, batch_data, batch_label
 
     '''
@@ -108,17 +109,36 @@ class Dataset:
     def get_embedding(self):
         return np.array(list(self.embeddings.values()), dtype=np.float)
 
-    def get_padded_batch(self, in_batch):
+    def get_padded_batch(self, in_batch_data):
         sentences_in_word = []
         sentences_in_char = []
-        for sentence in in_batch:
-            sentences_in_word[len(sentences_in_word)], sentences_in_char[len(sentences_in_char)] = zip(*sentence)
-        padded_sent_in_word_length, padded_sent_in_word = self.pad_seq(sentences_in_word)
+        max_word_len = 0
+        max_sentence_len = 0
+        sentences_length = []
+        word_length = []
+        for sentence in in_batch_data:
+            cur_sentence_in_word, cur_sentence_in_char = zip(*sentence)
+            sentences_in_word.append(cur_sentence_in_word)
+            sentences_in_char.append(cur_sentence_in_char)
+            sentences_length.append(len(cur_sentence_in_word))
+            if len(cur_sentence_in_word) > max_sentence_len:
+                max_sentence_len = len(cur_sentence_in_word)
+            word_length_in_cur_sentence = []
+            for word in cur_sentence_in_char:
+                word_length_in_cur_sentence.append(len(word))
+                if len(word) > max_word_len:
+                    max_word_len = len(word)
+            word_length.append(word_length_in_cur_sentence)
+        sentences_in_word = np.array(sentences_in_word)
+        sentences_in_char = np.array(sentences_in_char)
+        pass
 
 
 
-    @staticmethod
-    def pad_seq(in_seqs, pad_tok=0):
+
+
+
+    def pad_seqs(self, in_seqs, pad_tok):
         padded_seqs = []
         seqs_length = []
         max_len = 0
@@ -127,10 +147,13 @@ class Dataset:
             if len(seq) > max_len:
                 max_len = len(seq)
         for seq in in_seqs:
-            while len(seq) < max_len:
-                seq.append(pad_tok)
-            padded_seqs.append(seq)
+            padded_seqs.append(self.pad_to_len(seq, max_len, pad_tok))
         return seqs_length, padded_seqs
+
+    def pad_to_len(self, in_seq, target_len, pad_tok=0):
+        while len(in_seq) < target_len:
+            in_seq.append(pad_tok)
+        return in_seq
 
 
 
