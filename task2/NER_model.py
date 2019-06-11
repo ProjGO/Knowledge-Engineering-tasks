@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 from task2.data_util import Dataset
-from task2.config import Config
 
 
 class NERModel:
@@ -101,20 +100,36 @@ class NERModel:
                 losses = tf.boolean_mask(losses, mask)
                 self.loss = tf.reduce_mean(losses)
 
-            tf.summary.scalar("loss", self.loss)
-
         # optimizer
         with tf.name_scope("optimizer"):
-            opt = tf.train.GradientDescentOptimizer(1.0).minimize(self.loss)
+            self.opt = tf.train.GradientDescentOptimizer(1.0).minimize(self.loss)
 
         # predict
         with tf.name_scope("predict"):
             self.labels_pred = tf.cast(tf.argmax(logits, axis=-1), dtype=tf.int32)
 
-        print("graph initialization successful!")
+        # summary & saver
+        tf.summary.scalar("loss", self.loss)
+        self.merged_summary = tf.summary.merge_all()
+        self.saver = tf.train.Saver()
 
+        print("building graph successfully")
 
-
+    def train(self, num_epoch):
+        cur_epoch = 1
+        with tf.Session() as sess:
+            while cur_epoch <= num_epoch:
+                has_one_epoch, batch_data, batch_label = self.train_dataset.get_one_batch()
+                sentences_length, padded_sentences_word_lv, \
+                    word_lengths, padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
+                if has_one_epoch:
+                    cur_epoch += 1
+                feed_dict = {self.input_word_idx_lv: padded_sentences_word_lv,
+                             self.sentence_length: sentences_length,
+                             self.input_char_idx_lv: padded_sentences_char_lv,
+                             self.word_length: word_lengths,
+                             self.labels: padded_label}
+                _, loss, summary = sess.run([self.opt, self.loss, self.merged_summary], feed_dict=feed_dict)
 
 
 

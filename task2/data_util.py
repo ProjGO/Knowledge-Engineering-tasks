@@ -115,7 +115,7 @@ class Dataset:
     padded_label: [[一个词的标签, ..., 0(padding), ...], ...]
     '''
     @staticmethod
-    def get_padded_batch(in_batch_data, in_batch_label, pad_tok=0):
+    def batch_padding(in_batch_data, in_batch_label, pad_tok=0):
         sentences_in_word = []
         sentences_in_char = []
         max_word_len = 0
