@@ -1,9 +1,22 @@
 from task2.data_util import *
+from task2.data_util import Dataset
+from task2.NER_model import NERModel
+from task2.config import Config
 
+
+def y():
+    for i in range(5):
+        yield i
+
+def main():
+    config = Config()
+    model = NERModel(config)
+    model.build()
 
 if __name__ == "__main__":
-    dataset = Dataset("C:/Users/MagicStudio/OneDrive/课件/大二下/知识工程/work/datasets/nerDataset/train.txt")
-    dataset.convert_to_idx("C:/Users/MagicStudio/Desktop/word2vec.pkl")
-    ch = 'A'
-    for i in range(52):
-        print(chr(ord(ch)+i))
+    dataset = Dataset(dataset_path="E:/Study/第四学期/知识工程/task2/nerDataset/nerDataset/test.txt",
+                      vocab_path="E:/Study/第四学期/知识工程/task2/word2vec_0.1.pkl",
+                      name="train")
+    print(dataset.get_one_batch())
+    print(dataset.get_embedding().shape)
+    main()
