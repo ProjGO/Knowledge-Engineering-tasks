@@ -1,5 +1,5 @@
-import pickle
 import numpy as np
+from task2.config import Config
 
 
 class Dataset:
@@ -15,22 +15,23 @@ class Dataset:
     char_idxed_sentences = []  # 将单词拆成字符编码表示
     labels = []  # 列表的列表，对应着句子中的标签
     idxed_labels = []  # 转换为对应编号后的标签
-    embeddings = {}  # 预训练的word embedding, 格式word:vec,第一个是UNK(所有在embedding中找不到的都认为是UNK)
+    embedding = {}  # 预训练的word embedding, 格式word:vec,第一个是UNK(所有在embedding中找不到的都认为是UNK)
     word2idx = {}  # word:index
     idx2word = {}  # index:word
     sentences_cnt = 0  # 一共有几句话
-    word_cnt = 0  # 一共有几个词
+    dataset_word_cnt = 0  # 一共有几个词
 
     cur_idx = 0  # 下一个batch的开始是哪一句(sentences中的下标)
 
-    def __init__(self, dataset_path, vocab_path, batch_size=10, name="dataset"):
+    def __init__(self, config, name="dataset"):
+        self.config = config
         self.name = name  # 数据集名称(train/validate/test)
-        self.batch_size = batch_size
+        self.batch_size = config.batch_size
 
         # 读入原始数据
         sentence_buffer = []
         label_buffer = []
-        with open(dataset_path, 'r') as f:
+        with open(config.dataset_path, 'r') as f:
             for line in f:
                 if line.startswith("-DOCSTART-"):
                     continue
@@ -45,34 +46,34 @@ class Dataset:
                 else:
                     sentence_buffer.append(line[0])
                     label_buffer.append(line[3])
-                    self.word_cnt += 1
+                    self.dataset_word_cnt += 1
         print("Loading dataset %s done, %d sentences, %d words in total."
-              % (self.name, self.sentences_cnt, self.word_cnt))
+              % (self.name, self.sentences_cnt, self.dataset_word_cnt))
 
-        self.convert_word_and_label_to_idx(vocab_path)  # 将词和标签转换为数字表示
+        self.convert_word_and_label_to_idx()  # 将词和标签转换为数字表示
         self.convert_char_to_idx()  # 将词转换为字符级别表示,表示字符的数字为其ASCII码
 
-    def convert_word_and_label_to_idx(self, vocab_path):
-        with open(vocab_path, 'rb') as f:
-            self.embeddings = pickle.load(f)  # 读入预训练的word embedding
-            for word in self.embeddings.keys():
-                self.word2idx[word] = len(self.word2idx)
-            self.idx2word = {idx: word for word, idx in zip(self.word2idx.keys(), self.word2idx.values())}
-            UNK_cnt = 0
-            for sentence, labels in zip(self.sentences, self.labels):
-                cur_sentence = []
-                cur_label = []
-                for word in sentence:
-                    word = word.lower()  # word embedding中的所有词都是小写
-                    idx = self.word2idx.get(word, 0)  # 如果找不到返回0,0就是UNK
-                    cur_sentence.append(idx)
-                    if idx == 0:
-                        UNK_cnt += 1
-                for label in labels:
-                    cur_label.append(self.label2idx[label])
-                self.idxed_sentences.append(cur_sentence)
-                self.idxed_labels.append(cur_label)
-            print("converted words, labels to indexes, %d unknown words in %s" % (UNK_cnt, self.name))
+    def convert_word_and_label_to_idx(self):
+        self.config.load_embedding()
+        self.embedding = self.config.get_embedding()
+        for word in self.embedding.keys():
+            self.word2idx[word] = len(self.word2idx)
+        self.idx2word = {idx: word for word, idx in zip(self.word2idx.keys(), self.word2idx.values())}
+        unk_cnt = 0
+        for sentence, labels in zip(self.sentences, self.labels):
+            cur_sentence = []
+            cur_label = []
+            for word in sentence:
+                word = word.lower()  # word embedding中的所有词都是小写
+                idx = self.word2idx.get(word, 0)  # 如果找不到返回0,0就是UNK
+                cur_sentence.append(idx)
+                if idx == 0:
+                    unk_cnt += 1
+            for label in labels:
+                cur_label.append(self.label2idx[label])
+            self.idxed_sentences.append(cur_sentence)
+            self.idxed_labels.append(cur_label)
+        print("converted words, labels to indexes, %d unknown words in %s" % (unk_cnt, self.name))
 
     def convert_char_to_idx(self):
         for sentence in self.sentences:
@@ -100,22 +101,27 @@ class Dataset:
             if self.cur_idx == self.sentences_cnt - 1:
                 has_one_epoch = True
                 self.cur_idx = 0
-        self.get_padded_batch(batch_data)
         return has_one_epoch, batch_data, batch_label
 
     '''
-    返回词的向量表示,可用于创建用来查询的tf.Variable
+    句子长度pad至最长句长度
+    单词长度pad至最长单词长度(指整个batch中的最长单词)
+    label pad至最长句子长度
+    返回:
+    sentence_length: [一句话实际长度, ...]
+    padded_sentences_in_word: [[一句话每个词的id, 0(padding), ...], ...]
+    word_length: [[一句话每个单词的实际长度, ...], ...]
+    padded_sentences_in_char: [[[一个单词的字符id, ..., 0(padding), ...], ..., [0(padding)， ...]], ...]
+    padded_label: [[一个词的标签, ..., 0(padding), ...], ...]
     '''
-    def get_embedding(self):
-        return np.array(list(self.embeddings.values()), dtype=np.float)
-
-    def get_padded_batch(self, in_batch_data):
+    @staticmethod
+    def get_padded_batch(in_batch_data, in_batch_label, pad_tok=0):
         sentences_in_word = []
         sentences_in_char = []
         max_word_len = 0
         max_sentence_len = 0
         sentences_length = []
-        word_length = []
+        word_lengths = []
         for sentence in in_batch_data:
             cur_sentence_in_word, cur_sentence_in_char = zip(*sentence)
             sentences_in_word.append(cur_sentence_in_word)
@@ -128,35 +134,24 @@ class Dataset:
                 word_length_in_cur_sentence.append(len(word))
                 if len(word) > max_word_len:
                     max_word_len = len(word)
-            word_length.append(word_length_in_cur_sentence)
-        sentences_in_word = np.array(sentences_in_word)
-        sentences_in_char = np.array(sentences_in_char)
-        pass
+            word_lengths.append(word_length_in_cur_sentence)
+        for i in range(len(sentences_in_word)):
+            sentences_in_word[i] = list(sentences_in_word[i])
+            sentences_in_char[i] = list(sentences_in_char[i])
+            while len(sentences_in_word[i]) < max_sentence_len:
+                sentences_in_word[i].append(pad_tok)
+            while len(sentences_in_char[i]) < max_sentence_len:
+                sentences_in_char[i].append([pad_tok])
+            for j in range(len(sentences_in_char[i])):
+                while len(sentences_in_char[i][j]) < max_word_len:
+                    sentences_in_char[i][j].append(pad_tok)
+        for i in range(len(in_batch_label)):
+            while(len(in_batch_label[i])) < max_sentence_len:
+                in_batch_label[i].append(pad_tok)
+        padded_sentences_word_lv = np.array(sentences_in_word)
+        padded_sentences_char_lv = np.array(sentences_in_char)
+        padded_label = np.array(in_batch_label)
+        return sentences_length, padded_sentences_word_lv, word_lengths, padded_sentences_char_lv, padded_label
 
-
-
-
-
-
-    def pad_seqs(self, in_seqs, pad_tok):
-        padded_seqs = []
-        seqs_length = []
-        max_len = 0
-        for seq in in_seqs:
-            seqs_length.extend(len(seq))
-            if len(seq) > max_len:
-                max_len = len(seq)
-        for seq in in_seqs:
-            padded_seqs.append(self.pad_to_len(seq, max_len, pad_tok))
-        return seqs_length, padded_seqs
-
-    def pad_to_len(self, in_seq, target_len, pad_tok=0):
-        while len(in_seq) < target_len:
-            in_seq.append(pad_tok)
-        return in_seq
-
-
-
-
-
-
+    def get_vocab_size(self):
+        return len(self.embedding)

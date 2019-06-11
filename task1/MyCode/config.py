@@ -2,9 +2,8 @@ import os
 
 
 class Config:
-    dataset_dir = "../../datasets/"
-    log_dir = "../log_dir"
-    embedding_output_dir = "../embeddings"
+    dir_input = "C:/Users/MagicStudio/OneDrive/课件/大二下/知识工程/work/datasets"
+    dir_output = "D:/ML/Ckpts/KnowledgeEngineering_task1/log_dir"
     dataset_name = "text8"
 
     batch_size = 200
@@ -24,40 +23,31 @@ class Config:
     # 都为True时将直接拼接两种向量表示作为最终表示
 
     def write_config(self, cur_step, cur_epoch):
-        log_str = ""
-        log_str += ('cur_step ' + str(cur_step) + '\n')
-        log_str += ('cur_epoch ' + str(cur_epoch) + '\n')
-        log_str += ('vocab_size '+str(self.vocab_size) + '\n')
-        log_str += ('batch_size '+str(self.batch_size) + '\n')
-        log_str += ('window_size '+str(self.window_size) + '\n')
-        log_str += ('embedding_size '+str(self.embedding_size) + '\n')
-        log_str += ('num_sampled '+str(self.num_sampled) + '\n')
-        log_str += ('has_Vo '+str(self.has_Vo) + '\n')
-        log_str += ('using_Vi '+str(self.using_Vi) + '\n')
-        log_str += ('using_Vo '+str(self.using_Vo) + '\n')
-        with open(os.path.join(self.log_dir, "info.txt"), 'w') as f:
-            f.write(log_str)
-        with open(os.path.join(self.embedding_output_dir, "info.txt"), 'w') as f:
-            f.write(log_str)
+        with open(os.path.join(self.dir_output, "info.txt"), 'w') as f:
+            f.write('cur_step ' + str(cur_step) + '\n')
+            f.write('cur_epoch ' + str(cur_epoch) + '\n')
+            f.write('vocab_size '+str(self.vocab_size) + '\n')
+            f.write('batch_size '+str(self.batch_size) + '\n')
+            f.write('window_size '+str(self.window_size) + '\n')
+            f.write('embedding_size '+str(self.embedding_size) + '\n')
+            f.write('num_sampled '+str(self.num_sampled) + '\n')
+            f.write('has_Vo '+str(self.has_Vo) + '\n')
+            f.write('using_Vi '+str(self.using_Vi) + '\n')
+            f.write('using_Vo '+str(self.using_Vo) + '\n')
 
     def get_cur_step_epoch(self):
-        with open(os.path.join(self.log_dir, "info.txt"), 'r') as f:
+        with open(os.path.join(self.dir_output, "info.txt"), 'r') as f:
             step_line = f.readline().split()
             epoch_line = f.readline().split()
         return int(step_line[1]), int(epoch_line[1])
 
     def get_dataset_path(self):
-        return os.path.join(self.dataset_dir, self.dataset_name)
+        return os.path.join(self.dir_input, self.dataset_name)
 
-    def get_log_dir(self):
+    def get_output_dir(self):
         has_ckpt = False
-        if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir)
+        if not os.path.exists(self.dir_output):
+            os.makedirs(self.dir_output)
         else:
             has_ckpt = True
-        return has_ckpt, self.log_dir
-
-    def get_embedding_output_dir(self):
-        if not os.path.exists(self.embedding_output_dir):
-            os.makedirs(self.embedding_output_dir)
-        return self.embedding_output_dir
+        return has_ckpt, self.dir_output
