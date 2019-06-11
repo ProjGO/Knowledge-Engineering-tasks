@@ -107,3 +107,33 @@ class Dataset:
     '''
     def get_embedding(self):
         return np.array(list(self.embeddings.values()), dtype=np.float)
+
+    def get_padded_batch(self, in_batch):
+        sentences_in_word = []
+        sentences_in_char = []
+        for sentence in in_batch:
+            sentences_in_word[len(sentences_in_word)], sentences_in_char[len(sentences_in_char)] = zip(*sentence)
+        padded_sent_in_word_length, padded_sent_in_word = self.pad_seq(sentences_in_word)
+
+
+
+    @staticmethod
+    def pad_seq(in_seqs, pad_tok=0):
+        padded_seqs = []
+        seqs_length = []
+        max_len = 0
+        for seq in in_seqs:
+            seqs_length.extend(len(seq))
+            if len(seq) > max_len:
+                max_len = len(seq)
+        for seq in in_seqs:
+            while len(seq) < max_len:
+                seq.append(pad_tok)
+            padded_seqs.append(seq)
+        return seqs_length, padded_seqs
+
+
+
+
+
+
