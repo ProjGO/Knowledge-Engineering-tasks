@@ -1,5 +1,5 @@
 import numpy as np
-from task2.config import Config
+import os
 
 
 class Dataset:
@@ -23,7 +23,7 @@ class Dataset:
 
     cur_idx = 0  # 下一个batch的开始是哪一句(sentences中的下标)
 
-    def __init__(self, config, name="dataset"):
+    def __init__(self, config, name):
         self.config = config
         self.name = name  # 数据集名称(train/validate/test)
         self.batch_size = config.batch_size
@@ -31,7 +31,7 @@ class Dataset:
         # 读入原始数据
         sentence_buffer = []
         label_buffer = []
-        with open(config.dataset_path, 'r') as f:
+        with open(os.path.join(config.dataset_path, self.name+".txt"), 'r') as f:
             for line in f:
                 if line.startswith("-DOCSTART-"):
                     continue
