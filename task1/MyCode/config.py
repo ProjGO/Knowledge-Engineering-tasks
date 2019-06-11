@@ -6,6 +6,7 @@ class Config:
     dir_output = "D:/ML/Ckpts/KnowledgeEngineering_task1/log_dir"
     dataset_name = "text8"
 
+    self.nchars = 300
     batch_size = 200
     window_size = 5  # window_size words on each side
     embedding_size = 200
