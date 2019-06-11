@@ -94,6 +94,8 @@ class NERModel:
             else:
                 # s = tf.shape(self.labels)
                 # self.labels = tf.reshape(self.labels, shape=[s[0]*s[1]])
+                # logits shape=[batch_size, max_sentence_len, 标签种类数]
+                # labels shape=[batch_size, max_sentence_len]
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(
                     logits=logits, labels=self.labels)
                 mask = tf.sequence_mask(self.sentence_length)
@@ -106,22 +108,50 @@ class NERModel:
 
         # predict
         with tf.name_scope("predict"):
-            self.labels_pred = tf.cast(tf.argmax(logits, axis=-1), dtype=tf.int32)
+            # shape=[batch_size, max_sentence_len]
+            self.batch_pred = tf.cast(tf.argmax(logits, axis=-1), dtype=tf.int32)
 
-        # summary & saver
-        tf.summary.scalar("loss", self.loss)
+        # summary & saver & writer
+        self.step_loss_summary_ph = tf.placeholder(dtype=tf.float32)
+        self.step_accuracy_summary_ph = tf.placeholder(dtype=tf.float32)
+        step_loss_summary = tf.summary.scalar("step_loss", self.step_loss_summary_ph)
+        step_accuracy_summary = tf.summary.scalar("step_accuracy", self.step_accuracy_summary_ph)
         self.merged_summary = tf.summary.merge_all()
         self.saver = tf.train.Saver()
 
         print("building graph successfully")
 
+    @staticmethod
+    def get_batch_accuracy(batch_pred, batch_label, sentence_length):
+        true_pred = 0
+        total_pred = 0
+        sentence_cnt = batch_label.shape[0]
+        for i in range(sentence_cnt):
+            total_pred += sentence_length[i]
+            for j in range(sentence_length[i]):
+                if batch_pred[i][j] == batch_label[i][j]:
+                    true_pred += 1
+        return true_pred / total_pred
+
     def train(self, num_epoch):
-        cur_epoch = 1
+        if self.config.log_dir_exist:
+            cur_epoch, cur_step = self.config.get_cur_epoch_and_step()
+            print("previous log_dir found")
+        else:
+            cur_epoch, cur_step = 0, 0
+        accuracy_sum = 0
+        loss_sum = 0
         with tf.Session() as sess:
+            if self.config.log_dir_exist:
+                self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
+            else:
+                tf.global_variables_initializer().run()
+            summary_writer = tf.summary.FileWriter(self.config.log_dir, sess.graph)
             while cur_epoch <= num_epoch:
+                cur_step += 1
                 has_one_epoch, batch_data, batch_label = self.train_dataset.get_one_batch()
-                sentences_length, padded_sentences_word_lv, \
-                    word_lengths, padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
+                sentences_length, padded_sentences_word_lv, word_lengths, \
+                    padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
                 if has_one_epoch:
                     cur_epoch += 1
                 feed_dict = {self.input_word_idx_lv: padded_sentences_word_lv,
@@ -129,7 +159,25 @@ class NERModel:
                              self.input_char_idx_lv: padded_sentences_char_lv,
                              self.word_length: word_lengths,
                              self.labels: padded_label}
-                _, loss, summary = sess.run([self.opt, self.loss, self.merged_summary], feed_dict=feed_dict)
+                _, step_loss, batch_pred = sess.run([self.opt, self.loss, self.batch_pred],
+                                                    feed_dict=feed_dict)
+
+                step_accuracy = self.get_batch_accuracy(batch_pred, padded_label, sentences_length)
+                loss_sum += step_loss
+                accuracy_sum += step_accuracy
+                merged_summary = sess.run(self.merged_summary, feed_dict={self.step_loss_summary_ph: step_loss,
+                                                                          self.step_accuracy_summary_ph: step_accuracy})
+                summary_writer.add_summary(merged_summary, cur_step)
+
+                if cur_step % self.config.print_freq == 0:
+                    accuracy = accuracy_sum / self.config.print_freq
+                    loss = loss_sum / self.config.print_freq
+                    accuracy_sum = 0
+                    loss_sum = 0
+                    print("step %d, average loss: %f, average accuracy: %f" % (cur_step, loss, accuracy))
+
+
+
 
 
 

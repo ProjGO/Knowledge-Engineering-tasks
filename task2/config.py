@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+import os
 
 
 class Config:
@@ -9,7 +10,7 @@ class Config:
     embedding_path = "../embeddings/word2vec_0.1.pkl"
     log_dir = "log_dir"
 
-    lstm_layer_cnt = 1
+    lstm_layer = 1
 
     n_tags = 9
     state_dim = 200
@@ -23,10 +24,20 @@ class Config:
     char_embedding_trainable = False
 
     batch_size = 10
+    validate_freq = 1000
+    print_freq = 100
 
     use_crf = False
 
     embedding_loaded = False
+    log_dir_exist = False
+
+    def __init__(self):
+        self.load_embedding()
+        if os.path.exists(self.log_dir):
+            self.log_dir_exist = True
+        else:
+            os.makedirs(self.log_dir)
 
     def load_embedding(self):
         if self.embedding_loaded:
@@ -48,4 +59,28 @@ class Config:
     def get_embedding_vec(self):
         return np.array(list(self.embedding.values()), dtype=np.float)
 
+    def write_config(self):
+        log_str = ""
+        log_str += "char embedding dim: %d\n" % self.char_embedding_dim
+        log_str += "char embedding trainable: %s\n" % "True" if self.char_embedding_trainable else "False"
+        log_str += "state dim: %d\n" % self.state_dim
+        log_str += "output dim: %d\n" % self.output_dim
+        log_str += "RNN layer: %d\n" % self.lstm_layer
+        with open(os.path.join(self.log_dir, "config.txt"), 'w') as f:
+            f.write(log_str)
+
+    def write_epoch_and_step(self, epoch, step):
+        log_str = ""
+        log_str += "cur epoch: %d\n" % epoch
+        log_str += "cur step: %d\n" % step
+        with open(os.path.join(self.log_dir, "train_progress.txt"), 'w') as f:
+            f.write(log_str)
+
+    def get_cur_epoch_and_step(self):
+        with open(os.path.join(self.log_dir, "train_progress.txt"), 'w') as f:
+            line = f.readline().split()
+            cur_epoch = int(line[1])
+            line = f.readline().split()
+            cur_step = int(line[1])
+        return cur_epoch, cur_step
 
