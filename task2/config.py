@@ -30,7 +30,6 @@ class Config:
 
     use_crf = False
 
-    embedding_loaded = False
     log_dir_exist = False
 
     label2idx = {"O": 0, "B-ORG": 1, "I-ORG": 2, "B-PER": 3, "I-PER": 4,
@@ -56,17 +55,6 @@ class Config:
         else:
             os.makedirs(self.log_dir)
             pass
-
-    def load_embedding(self):
-        if self.embedding_loaded:
-            return
-        self.embedding_loaded = True
-        with open(self.embedding_path, 'rb') as f:
-            self.embedding = pickle.load(f)  # 读入预训练的word embedding
-        self.word_embedding_dim = len(self.embedding["UNK"])
-        self.embedding_vocab_size = len(self.embedding)
-        print("pretrained word embedding loaded, %d words in the vocab, embedding dim: %d"
-              % (self.embedding_vocab_size, self.word_embedding_dim))
 
     def get_embedding(self):
         return self.embedding

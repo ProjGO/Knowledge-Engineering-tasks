@@ -55,7 +55,7 @@ class Dataset:
         self.convert_char_to_idx()  # 将词转换为字符级别表示,表示字符的数字为其ASCII码
 
     def convert_word_and_label_to_idx(self):
-        self.config.load_embedding()
+        # self.config.load_embedding()
         self.embedding = self.config.get_embedding()
         self.word2idx = self.config.get_word2idx()
         self.idx2word = {idx: word for word, idx in zip(self.word2idx.keys(), self.word2idx.values())}

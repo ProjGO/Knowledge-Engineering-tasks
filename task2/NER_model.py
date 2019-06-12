@@ -1,6 +1,6 @@
 import tensorflow as tf
-import numpy as np
 from task2.data_util import *
+from tensorflow.python import debug as tf_debug
 
 
 class NERModel:
@@ -147,6 +147,7 @@ class NERModel:
                 self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
             else:
                 self.init.run()
+            sess = tf_debug.LocalCLIDebugWrapperSession(sess)
             summary_writer = tf.summary.FileWriter(self.config.log_dir, sess.graph)
             while cur_epoch - start_epoch <= num_epoch:
                 cur_step += 1
