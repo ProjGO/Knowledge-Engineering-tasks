@@ -49,16 +49,17 @@ class NERModel:
                 char_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
                                                             name="char_bw_lstm_cell")
-                # (outputs, (output_state_fw, output_state_bw))
                 s = tf.shape(input_char_vec_lv)
                 input_char_vec_lv = tf.reshape(input_char_vec_lv, shape=[s[0]*s[1], s[-2], self.config.char_embedding_dim])
-                self.word_length = tf.reshape(self.word_length, shape=[s[0]*s[1]])
-                _, (output_state_fw, output_state_bw) = tf.nn.bidirectional_dynamic_rnn(char_fw_lstm_cell,
-                                                                                        char_bw_lstm_cell,
-                                                                                        inputs=input_char_vec_lv,
-                                                                                        sequence_length=self.word_length,
-                                                                                        dtype=tf.float32)
-                char_lstm_output = tf.concat([output_state_bw, output_state_bw], axis=-1)
+                reshaped_word_length = tf.reshape(self.word_length, shape=[s[0]*s[1]])
+                # (outputs, (output_state_fw, output_state_bw))
+                # ???
+                _, ((_, output_state_fw), (_, output_state_bw)) = tf.nn.bidirectional_dynamic_rnn(char_fw_lstm_cell,
+                                                                                                  char_bw_lstm_cell,
+                                                                                                  inputs=input_char_vec_lv,
+                                                                                                  sequence_length=reshaped_word_length,
+                                                                                                  dtype=tf.float32)
+                char_lstm_output = tf.reshape(tf.concat([output_state_bw, output_state_bw], axis=-1), shape=[s[0], s[1], 2*self.config.output_dim])
                 input_word_vec_lv = tf.concat([input_word_vec_lv, char_lstm_output], axis=-1)
             with tf.name_scope("word_lv"):
                 word_fw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
@@ -98,13 +99,13 @@ class NERModel:
                 # labels shape=[batch_size, max_sentence_len]
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(
                     logits=logits, labels=self.labels)
-                mask = tf.sequence_mask(self.sentence_length)
+                mask = tf.sequence_mask(self.sentence_length, tf.shape(self.input_word_idx_lv)[1])
                 losses = tf.boolean_mask(losses, mask)
                 self.loss = tf.reduce_mean(losses)
 
         # optimizer
         with tf.name_scope("optimizer"):
-            self.opt = tf.train.GradientDescentOptimizer(1.0).minimize(self.loss)
+            self.opt = tf.train.GradientDescentOptimizer(0.001).minimize(self.loss)
 
         # predict
         with tf.name_scope("predict"):
@@ -118,6 +119,7 @@ class NERModel:
         step_accuracy_summary = tf.summary.scalar("step_accuracy", self.step_accuracy_summary_ph)
         self.merged_summary = tf.summary.merge_all()
         self.saver = tf.train.Saver()
+        self.init = tf.initialize_all_variables()
 
         print("building graph successfully")
 
@@ -134,7 +136,8 @@ class NERModel:
         return true_pred / total_pred
 
     def train(self, num_epoch):
-        if self.config.log_dir_exist:
+        # if self.config.log_dir_exist:
+        if False:
             cur_epoch, cur_step = self.config.get_cur_epoch_and_step()
             print("previous log_dir found")
         else:
@@ -145,7 +148,7 @@ class NERModel:
             if self.config.log_dir_exist:
                 self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
             else:
-                tf.global_variables_initializer().run()
+                self.init.run()
             summary_writer = tf.summary.FileWriter(self.config.log_dir, sess.graph)
             while cur_epoch <= num_epoch:
                 cur_step += 1
@@ -169,15 +172,11 @@ class NERModel:
                                                                           self.step_accuracy_summary_ph: step_accuracy})
                 summary_writer.add_summary(merged_summary, cur_step)
 
-                if cur_step % self.config.print_freq == 0:
+                if cur_step % self.config.print_freq == 0 and cur_step > 0:
                     accuracy = accuracy_sum / self.config.print_freq
                     loss = loss_sum / self.config.print_freq
                     accuracy_sum = 0
                     loss_sum = 0
                     print("step %d, average loss: %f, average accuracy: %f" % (cur_step, loss, accuracy))
 
-
-
-
-
-
+                self.saver.save(sess, self.config.log_dir)

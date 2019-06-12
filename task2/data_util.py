@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 import os
 
 
@@ -95,8 +96,11 @@ class Dataset:
         batch_data = []
         batch_label = []
         for i in range(self.batch_size):
-            batch_data.append(list(zip(self.idxed_sentences[self.cur_idx], self.char_idxed_sentences[self.cur_idx])))
-            batch_label.append(self.idxed_labels[self.cur_idx])
+            cur_idxed_sentence = copy.deepcopy(self.idxed_sentences[self.cur_idx])
+            cur_char_idxed_sentence = copy.deepcopy(self.char_idxed_sentences[self.cur_idx])
+            cur_label = copy.deepcopy(self.idxed_labels[self.cur_idx])  # 不copy就去世<-----一上午的发现
+            batch_data.append(list(zip(cur_idxed_sentence, cur_char_idxed_sentence)))
+            batch_label.append(cur_label)
             self.cur_idx = self.cur_idx + 1
             if self.cur_idx == self.sentences_cnt - 1:
                 has_one_epoch = True
@@ -113,6 +117,7 @@ class Dataset:
     word_length: [[一句话每个单词的实际长度, ...], ...]
     padded_sentences_in_char: [[[一个单词的字符id, ..., 0(padding), ...], ..., [0(padding)， ...]], ...]
     padded_label: [[一个词的标签, ..., 0(padding), ...], ...]
+    padded_word_length: [[一句中每个单词长度, ..., 0(padding), ...], ...]
     '''
     @staticmethod
     def batch_padding(in_batch_data, in_batch_label, pad_tok=0):
@@ -121,7 +126,7 @@ class Dataset:
         max_word_len = 0
         max_sentence_len = 0
         sentences_length = []
-        word_lengths = []
+        padded_word_lengths = []
         for sentence in in_batch_data:
             cur_sentence_in_word, cur_sentence_in_char = zip(*sentence)
             sentences_in_word.append(cur_sentence_in_word)
@@ -134,7 +139,7 @@ class Dataset:
                 word_length_in_cur_sentence.append(len(word))
                 if len(word) > max_word_len:
                     max_word_len = len(word)
-            word_lengths.append(word_length_in_cur_sentence)
+            padded_word_lengths.append(word_length_in_cur_sentence)
         for i in range(len(sentences_in_word)):
             sentences_in_word[i] = list(sentences_in_word[i])
             sentences_in_char[i] = list(sentences_in_char[i])
@@ -142,6 +147,8 @@ class Dataset:
                 sentences_in_word[i].append(pad_tok)
             while len(sentences_in_char[i]) < max_sentence_len:
                 sentences_in_char[i].append([pad_tok])
+            while len(padded_word_lengths[i]) < max_sentence_len:
+                padded_word_lengths[i].append(0)
             for j in range(len(sentences_in_char[i])):
                 while len(sentences_in_char[i][j]) < max_word_len:
                     sentences_in_char[i][j].append(pad_tok)
@@ -151,7 +158,7 @@ class Dataset:
         padded_sentences_word_lv = np.array(sentences_in_word)
         padded_sentences_char_lv = np.array(sentences_in_char)
         padded_label = np.array(in_batch_label)
-        return sentences_length, padded_sentences_word_lv, word_lengths, padded_sentences_char_lv, padded_label
+        return sentences_length, padded_sentences_word_lv, padded_word_lengths, padded_sentences_char_lv, padded_label
 
     def get_vocab_size(self):
         return len(self.embedding)

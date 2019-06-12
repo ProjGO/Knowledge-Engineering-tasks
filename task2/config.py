@@ -23,9 +23,9 @@ class Config:
     word_embedding_trainable = False
     char_embedding_trainable = False
 
-    batch_size = 10
+    batch_size = 100
     validate_freq = 1000
-    print_freq = 100
+    print_freq = 5
 
     use_crf = False
 
@@ -38,6 +38,7 @@ class Config:
             self.log_dir_exist = True
         else:
             os.makedirs(self.log_dir)
+            pass
 
     def load_embedding(self):
         if self.embedding_loaded:
