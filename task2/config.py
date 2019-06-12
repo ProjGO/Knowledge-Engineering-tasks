@@ -21,7 +21,7 @@ class Config:
     word_embedding_dim = -1
     embedding_vocab_size = -1
     char_embedding_dim = 100
-    word_embedding_trainable = False
+    word_embedding_trainable = True
     char_embedding_trainable = True
 
     batch_size = 100
@@ -98,7 +98,7 @@ class Config:
             f.write(log_str)
 
     def get_cur_epoch_and_step(self):
-        with open(os.path.join(self.log_dir, "train_progress.txt"), 'w') as f:
+        with open(os.path.join(self.log_dir, "train_progress.txt"), 'r') as f:
             line = f.readline().split()
             cur_epoch = int(line[1])
             line = f.readline().split()
