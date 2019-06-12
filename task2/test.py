@@ -12,7 +12,8 @@ if __name__ == "__main__":
         sentences_length, padded_sentences_word_lv, padded_word_lengths, padded_sentences_char_lv, padded_label = \
             dataset.batch_padding(batch_data, batch_label)'''
     model = NERModel(config, dataset, dataset, dataset)
-    model.train(3)
+    # model.train(5)
+    model.predict_sentence()
     # print(dataset.get_one_batch())
     '''a = np.array([[1, 2, 3], [4, 5, 6]])
     a[1] = np.append(a[1], 4)

@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from task2.data_util import Dataset
+from task2.data_util import *
 
 
 class NERModel:
@@ -93,10 +93,6 @@ class NERModel:
                 self.trans_params = trans_params
                 self.loss = tf.reduce_mean(-log_likelihood)
             else:
-                # s = tf.shape(self.labels)
-                # self.labels = tf.reshape(self.labels, shape=[s[0]*s[1]])
-                # logits shape=[batch_size, max_sentence_len, 标签种类数]
-                # labels shape=[batch_size, max_sentence_len]
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(
                     logits=logits, labels=self.labels)
                 mask = tf.sequence_mask(self.sentence_length, tf.shape(self.input_word_idx_lv)[1])
@@ -136,12 +132,14 @@ class NERModel:
         return true_pred / total_pred
 
     def train(self, num_epoch):
-        # if self.config.log_dir_exist:
-        if False:
-            cur_epoch, cur_step = self.config.get_cur_epoch_and_step()
+        if self.config.log_dir_exist:
+            # start_epoch, start_step = self.config.get_cur_epoch_and_step()
+            start_epoch, start_step = 5, 700
             print("previous log_dir found")
         else:
-            cur_epoch, cur_step = 0, 0
+            start_epoch, start_step = 1, 1
+        cur_epoch = start_epoch
+        cur_step = start_step
         accuracy_sum = 0
         loss_sum = 0
         with tf.Session() as sess:
@@ -150,7 +148,7 @@ class NERModel:
             else:
                 self.init.run()
             summary_writer = tf.summary.FileWriter(self.config.log_dir, sess.graph)
-            while cur_epoch <= num_epoch:
+            while cur_epoch - start_epoch <= num_epoch:
                 cur_step += 1
                 has_one_epoch, batch_data, batch_label = self.train_dataset.get_one_batch()
                 sentences_length, padded_sentences_word_lv, word_lengths, \
@@ -179,4 +177,23 @@ class NERModel:
                     loss_sum = 0
                     print("step %d, average loss: %f, average accuracy: %f" % (cur_step, loss, accuracy))
 
-                self.saver.save(sess, self.config.log_dir)
+            self.saver.save(sess, os.path.join(self.config.log_dir, "ner_model.ckpt"), global_step=cur_step)
+            self.config.write_config()
+            self.config.write_epoch_and_step(cur_epoch, cur_step)
+
+    def predict_sentence(self):
+        with tf.Session() as sess:
+            self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
+            while True:
+                print("ready to predict")
+                in_sentence = input()
+                in_word_lv, sentence_length, in_char_lv, word_length = process_input(self.config, in_sentence)
+                pred = sess.run(self.batch_pred, feed_dict={self.input_word_idx_lv: in_word_lv,
+                                                            self.input_char_idx_lv: in_char_lv,
+                                                            self.sentence_length: sentence_length,
+                                                            self.word_length: word_length})
+                pred = pred[0]
+                pred_labels = []
+                for i in range(len(pred)):
+                    pred_labels.append(self.config.idx2label[pred[i]])
+                print(pred_labels)

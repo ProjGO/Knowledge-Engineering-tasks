@@ -57,8 +57,7 @@ class Dataset:
     def convert_word_and_label_to_idx(self):
         self.config.load_embedding()
         self.embedding = self.config.get_embedding()
-        for word in self.embedding.keys():
-            self.word2idx[word] = len(self.word2idx)
+        self.word2idx = self.config.get_word2idx()
         self.idx2word = {idx: word for word, idx in zip(self.word2idx.keys(), self.word2idx.values())}
         unk_cnt = 0
         for sentence, labels in zip(self.sentences, self.labels):
@@ -162,3 +161,26 @@ class Dataset:
 
     def get_vocab_size(self):
         return len(self.embedding)
+
+
+def process_input(config, in_sentence):
+    in_sentence = in_sentence.split()
+    sentence_length = len(in_sentence)
+    word_length = []
+    in_word_lv = []
+    in_char_lv = []
+    max_word_length = 0
+    for word in in_sentence:
+        in_word_lv.append(config.word2idx.get(word, 0))
+        chars_idx = []
+        for char in word:
+            chars_idx.append(config.char2idx[char])
+        in_char_lv.append(chars_idx)
+        word_length.append(len(chars_idx))
+        if len(chars_idx) > max_word_length:
+            max_word_length = len(chars_idx)
+    for i in range(sentence_length):
+        while len(in_char_lv[i]) < max_word_length:
+            in_char_lv[i].append(0)
+    return [in_word_lv], [sentence_length], [in_char_lv], [word_length]
+
