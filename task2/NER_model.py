@@ -30,7 +30,7 @@ class NERModel:
             word_embedding_table = tf.Variable(initial_value=self.config.get_embedding_vec(),
                                                trainable=self.config.word_embedding_trainable,
                                                name="word_embedding_table", dtype=tf.float32)
-            char_embedding_table = tf.Variable(initial_value=tf.truncated_normal(shape=[256, self.config.char_embedding_dim]),
+            char_embedding_table = tf.Variable(initial_value=tf.truncated_normal(shape=[256, self.config.char_embedding_dim], stddev=1),
                                                trainable=self.config.char_embedding_trainable,
                                                name="char_embedding_table", dtype=tf.float32)
             input_word_vec_lv = tf.nn.embedding_lookup(word_embedding_table,
@@ -43,37 +43,63 @@ class NERModel:
         # LSTM
         with tf.name_scope("LSTM"):
             with tf.name_scope("char_lv"):
-                char_fw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
+                stacked_cell_fw = []
+                stacked_cell_bw = []
+                for i in range(self.config.lstm_layer):
+                    stacked_cell_fw.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
+                    stacked_cell_bw.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
+                mcell_fw = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_fw)
+                mcell_bw = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_bw)
+                '''char_fw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
                                                             name="char_fw_lstm_cell")
                 char_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
-                                                            name="char_bw_lstm_cell")
+                                                            name="char_bw_lstm_cell")'''
                 s = tf.shape(input_char_vec_lv)
                 input_char_vec_lv = tf.reshape(input_char_vec_lv, shape=[s[0]*s[1], s[-2], self.config.char_embedding_dim])
                 reshaped_word_length = tf.reshape(self.word_length, shape=[s[0]*s[1]])
-                # (outputs, (output_state_fw, output_state_bw))
-                # ???
-                _, ((_, output_state_fw), (_, output_state_bw)) = tf.nn.bidirectional_dynamic_rnn(char_fw_lstm_cell,
-                                                                                                  char_bw_lstm_cell,
-                                                                                                  inputs=input_char_vec_lv,
-                                                                                                  sequence_length=reshaped_word_length,
-                                                                                                  dtype=tf.float32)
-                char_lstm_output = tf.reshape(tf.concat([output_state_bw, output_state_bw], axis=-1), shape=[s[0], s[1], 2*self.config.output_dim])
+                # (outputs, ((output_state_fw_c, output_state_fw_h), (output_state_bw_c, output_state_bw_h)))
+                '''_, ((_, output_state_fw_h), (_, output_state_bw_h)) \
+                    = tf.nn.bidirectional_dynamic_rnn(char_fw_lstm_cell, char_bw_lstm_cell,
+                                                      inputs=input_char_vec_lv,
+                                                      sequence_length=reshaped_word_length,
+                                                      dtype=tf.float32)'''
+                _, (output_state_fw_h, output_state_bw_h) \
+                    = tf.nn.bidirectional_dynamic_rnn(mcell_fw, mcell_bw,
+                                                      inputs=input_char_vec_lv,
+                                                      sequence_length=reshaped_word_length,
+                                                      dtype=tf.float32)
+                (_, output_state_fw_h) = output_state_fw_h[self.config.lstm_layer-1]
+                (_, output_state_bw_h) = output_state_bw_h[self.config.lstm_layer-1]
+                char_lstm_output = tf.reshape(tf.concat([output_state_fw_h, output_state_bw_h], axis=-1), shape=[s[0], s[1], 2*self.config.output_dim])
                 input_word_vec_lv = tf.concat([input_word_vec_lv, char_lstm_output], axis=-1)
             with tf.name_scope("word_lv"):
+                stacked_cell_fw_word_lv = []
+                stacked_cell_bw_word_lv = []
+                for i in range(self.config.lstm_layer):
+                    stacked_cell_fw_word_lv.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
+                    stacked_cell_bw_word_lv.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
+                mcell_fw_word_lv = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_fw_word_lv)
+                mcell_bw_word_lv = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_bw_word_lv)
                 word_fw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
                                                             name="word_fw_lstm_cell")
                 word_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
                                                             name="word_bw_lstm_cell")
-                (output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(word_fw_lstm_cell, word_bw_lstm_cell,
+                '''(output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(mcell_fw_word_lv, mcell_bw_word_lv,
                                                                             inputs=input_word_vec_lv,
                                                                             sequence_length=self.sentence_length,
                                                                             dtype=tf.float32)
-                word_lstm_output = tf.concat([output_fw, output_bw], axis=-1)
-
+                output_fw = output_fw[self.config.lstm_layer-1]
+                output_bw = output_bw[self.config.lstm_layer-1]
+                word_lstm_output = tf.concat([output_fw, output_bw], axis=-1)'''
+                (word_lstm_output, _, _) = \
+                    tf.contrib.rnn.stack_bidirectional_dynamic_rnn(stacked_cell_fw_word_lv, stacked_cell_bw_word_lv,
+                                                                   inputs=input_word_vec_lv,
+                                                                   sequence_length=self.sentence_length,
+                                                                   dtype=tf.float32)
         # fc
         with tf.name_scope("full_connect"):
             w = tf.Variable(initial_value=tf.truncated_normal(shape=[2*self.config.output_dim, self.config.n_tags]),
@@ -101,7 +127,8 @@ class NERModel:
 
         # optimizer
         with tf.name_scope("optimizer"):
-            self.opt = tf.train.GradientDescentOptimizer(0.001).minimize(self.loss)
+            # self.opt = tf.train.GradientDescentOptimizer(0.001).minimize(self.loss)
+            self.opt = tf.train.AdamOptimizer().minimize(self.loss)
 
         # predict
         with tf.name_scope("predict"):
@@ -147,7 +174,7 @@ class NERModel:
                 self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
             else:
                 self.init.run()
-            sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+            # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
             summary_writer = tf.summary.FileWriter(self.config.log_dir, sess.graph)
             while cur_epoch - start_epoch <= num_epoch:
                 cur_step += 1
@@ -198,3 +225,29 @@ class NERModel:
                 for i in range(len(pred)):
                     pred_labels.append(self.config.idx2label[pred[i]])
                 print(pred_labels)
+
+    def test(self):
+        accuracy = 0
+        n_step = 0
+        has_one_epoch = False
+        with tf.Session() as sess:
+            self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
+            while not has_one_epoch:
+                has_one_epoch, batch_data, batch_label = self.test_dataset.get_one_batch()
+                sentences_length, padded_sentences_word_lv, word_lengths, \
+                padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
+                feed_dict = {
+                    self.input_word_idx_lv: padded_sentences_word_lv,
+                    self.input_char_idx_lv: padded_sentences_char_lv,
+                    self.sentence_length: sentences_length,
+                    self.word_length: word_lengths}
+                pred = sess.run(self.batch_pred, feed_dict=feed_dict)
+                '''for i in range(self.config.batch_size):
+                    print(pred[i])
+                    print(padded_label[i])
+                    print('\n')'''
+                step_accuracy = self.get_batch_accuracy(pred, padded_label, sentences_length)
+                n_step += 1
+                accuracy += step_accuracy
+        accuracy /= n_step
+        return accuracy

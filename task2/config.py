@@ -24,9 +24,9 @@ class Config:
     word_embedding_trainable = True
     char_embedding_trainable = True
 
-    batch_size = 100
+    batch_size = 30
     validate_freq = 1000
-    print_freq = 5
+    print_freq = 20
 
     use_crf = False
 
@@ -70,6 +70,7 @@ class Config:
 
     def write_config(self):
         log_str = ""
+        log_str += "batch size: %d\n" % self.batch_size
         log_str += "char embedding dim: %d\n" % self.char_embedding_dim
         log_str += "char embedding trainable: %s\n" % "True" if self.char_embedding_trainable else "False"
         log_str += "state dim: %d\n" % self.state_dim
