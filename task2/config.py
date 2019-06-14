@@ -24,7 +24,7 @@ class Config:
     word_embedding_trainable = True
     char_embedding_trainable = True
 
-    batch_size = 30  # 10
+    batch_size = 1
     validate_freq = 1000
     print_freq = 20
 
@@ -73,8 +73,6 @@ class Config:
         log_str += "batch size: %d\n" % self.batch_size
         log_str += "char embedding dim: %d\n" % self.char_embedding_dim
         log_str += "char embedding trainable: %s\n" % "True" if self.char_embedding_trainable else "False"
-        log_str += "word embedding trainable %s\n" % self.word_embedding_dim
-        log_str += "word embedding trainable: %s\n" % "True" if self.word_embedding_trainable else "False"
         log_str += "state dim: %d\n" % self.state_dim
         log_str += "output dim: %d\n" % self.output_dim
         log_str += "RNN layer: %d\n" % self.lstm_layer

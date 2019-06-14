@@ -1,7 +1,6 @@
 import tensorflow as tf
 from task2.data_util import *
-import numpy as np
-# from tensorflow.python import debug as tf_debug
+from tensorflow.python import debug as tf_debug
 
 
 class NERModel:
@@ -10,6 +9,7 @@ class NERModel:
         self.train_dataset = train_dataset
         self.validate_dataset = validate_dataset
         self.test_dataset = test_dataset
+
         # 输入
         with tf.name_scope("Input"):
             # shape=[batch_size, max_sentence_length]
@@ -56,10 +56,8 @@ class NERModel:
                 char_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
                                                             name="char_bw_lstm_cell")'''
-                # s=[batch_size, max_sentence_length, max_word_length, char_embedding_dim]
                 s = tf.shape(input_char_vec_lv)
-                input_char_vec_lv = tf.reshape(input_char_vec_lv,
-                                               shape=[s[0]*s[1], s[-2], self.config.char_embedding_dim])
+                input_char_vec_lv = tf.reshape(input_char_vec_lv, shape=[s[0]*s[1], s[-2], self.config.char_embedding_dim])
                 reshaped_word_length = tf.reshape(self.word_length, shape=[s[0]*s[1]])
                 # (outputs, ((output_state_fw_c, output_state_fw_h), (output_state_bw_c, output_state_bw_h)))
                 '''_, ((_, output_state_fw_h), (_, output_state_bw_h)) \
@@ -67,13 +65,13 @@ class NERModel:
                                                       inputs=input_char_vec_lv,
                                                       sequence_length=reshaped_word_length,
                                                       dtype=tf.float32)'''
-                _, (output_state_fw, output_state_bw) \
+                _, (output_state_fw_h, output_state_bw_h) \
                     = tf.nn.bidirectional_dynamic_rnn(mcell_fw, mcell_bw,
                                                       inputs=input_char_vec_lv,
                                                       sequence_length=reshaped_word_length,
                                                       dtype=tf.float32)
-                (_, output_state_fw_h) = output_state_fw[self.config.lstm_layer-1]
-                (_, output_state_bw_h) = output_state_bw[self.config.lstm_layer-1]
+                (_, output_state_fw_h) = output_state_fw_h[self.config.lstm_layer-1]
+                (_, output_state_bw_h) = output_state_bw_h[self.config.lstm_layer-1]
                 char_lstm_output = tf.reshape(tf.concat([output_state_fw_h, output_state_bw_h], axis=-1), shape=[s[0], s[1], 2*self.config.output_dim])
                 input_word_vec_lv = tf.concat([input_word_vec_lv, char_lstm_output], axis=-1)
             with tf.name_scope("word_lv"):
@@ -82,14 +80,14 @@ class NERModel:
                 for i in range(self.config.lstm_layer):
                     stacked_cell_fw_word_lv.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
                     stacked_cell_bw_word_lv.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
-                '''mcell_fw_word_lv = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_fw_word_lv)
+                mcell_fw_word_lv = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_fw_word_lv)
                 mcell_bw_word_lv = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_bw_word_lv)
                 word_fw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
                                                             name="word_fw_lstm_cell")
                 word_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
-                                                            name="word_bw_lstm_cell")'''
+                                                            name="word_bw_lstm_cell")
                 '''(output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(mcell_fw_word_lv, mcell_bw_word_lv,
                                                                             inputs=input_word_vec_lv,
                                                                             sequence_length=self.sentence_length,
@@ -112,7 +110,6 @@ class NERModel:
             logits = tf.add(tf.matmul(word_lstm_output, w), b)
             s = tf.shape(self.input_word_idx_lv)
             logits = tf.reshape(logits, shape=[s[0], s[1], self.config.n_tags])
-            self.logits = logits
 
         # loss
         with tf.name_scope("loss"):
@@ -153,21 +150,18 @@ class NERModel:
     def get_batch_accuracy(batch_pred, batch_label, sentence_length):
         true_pred = 0
         total_pred = 0
-        tag_error = np.zeros((9, 9))
         sentence_cnt = batch_label.shape[0]
         for i in range(sentence_cnt):
             total_pred += sentence_length[i]
             for j in range(sentence_length[i]):
                 if batch_pred[i][j] == batch_label[i][j]:
                     true_pred += 1
-                tag_error[batch_label[i][j]][batch_pred[i][j]] += 1
-
-        return true_pred / total_pred, tag_error
+        return true_pred / total_pred
 
     def train(self, num_epoch):
         if self.config.log_dir_exist:
-            start_epoch, start_step = self.config.get_cur_epoch_and_step()  # 》》》》》》》》》》》》》》》》》》》》
-            # start_epoch, start_step = 5, 700
+            # start_epoch, start_step = self.config.get_cur_epoch_and_step()
+            start_epoch, start_step = 5, 700
             print("previous log_dir found")
         else:
             start_epoch, start_step = 1, 1
@@ -222,22 +216,11 @@ class NERModel:
                 print("ready to predict")
                 in_sentence = input()
                 in_word_lv, sentence_length, in_char_lv, word_length = process_input(self.config, in_sentence)
-                # print(in_word_lv, sentence_length, in_char_lv, word_length)
-                feed_dict = {self.input_word_idx_lv: in_word_lv,
-                             self.input_char_idx_lv: in_char_lv,
-                             self.sentence_length: sentence_length,
-                             self.word_length: word_length}
-                if self.config.use_crf:
-                    viterbi_sequences = []
-                    logits, trans_params = sess.run([self.logits, self.trans_params], feed_dict=feed_dict)
-                    # logits = tf.reshape(batch_pred, [-1, self.config.batch_size, 9])
-                    for logit, sequence_length in zip(logits, sentence_length):
-                        logit = logit[:sequence_length]
-                        viterbi_seq, viterbi_score = tf.contrib.crf.viterbi_decode(logit, trans_params)
-                        viterbi_sequences += [viterbi_seq]
-                    pred = viterbi_sequences
-                else:
-                    pred = sess.run(self.batch_pred, feed_dict=feed_dict)
+                print(in_word_lv, sentence_length, in_char_lv, word_length)
+                pred = sess.run(self.batch_pred, feed_dict={self.input_word_idx_lv: in_word_lv,
+                                                            self.input_char_idx_lv: in_char_lv,
+                                                            self.sentence_length: sentence_length,
+                                                            self.word_length: word_length})
                 pred = pred[0]
                 pred_labels = []
                 for i in range(len(pred)):
@@ -250,44 +233,25 @@ class NERModel:
         accuracy = 0
         n_step = 0
         has_one_epoch = False
-        tag_error_sum = np.zeros((9, 9))
         with tf.Session() as sess:
             self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
             while not has_one_epoch:
                 has_one_epoch, batch_data, batch_label = self.test_dataset.get_one_batch()
                 sentences_length, padded_sentences_word_lv, word_lengths, \
                 padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
-                # print(padded_sentences_word_lv, padded_sentences_char_lv, sentences_length, word_lengths)
+                print(padded_sentences_word_lv, padded_sentences_char_lv, sentences_length, word_lengths)
                 feed_dict = {
                     self.input_word_idx_lv: padded_sentences_word_lv,
                     self.input_char_idx_lv: padded_sentences_char_lv,
                     self.sentence_length: sentences_length,
                     self.word_length: word_lengths}
-                if self.config.use_crf:
-                    viterbi_sequences = []
-                    logits, trans_params = sess.run([self.logits, self.trans_params], feed_dict=feed_dict)
-                    # logits = tf.reshape(batch_pred, [-1, self.config.batch_size, 9])
-                    for logit, sequence_length in zip(logits, sentences_length):
-                        logit = logit[:sequence_length]
-                        viterbi_seq, viterbi_score = tf.contrib.crf.viterbi_decode(logit, trans_params)
-                        viterbi_sequences += [viterbi_seq]
-                    pred = viterbi_sequences
-                else:
-                    pred = sess.run(self.batch_pred, feed_dict=feed_dict)
-                # for i in range(self.config.batch_size):
-                    # print(pred[i])
-                    # print(padded_label[i])
-                    # print('\n')
-                step_accuracy, tag_error = self.get_batch_accuracy(pred, padded_label, sentences_length)
+                pred = sess.run(self.batch_pred, feed_dict=feed_dict)
+                for i in range(self.config.batch_size):
+                    print(pred[i])
+                    print(padded_label[i])
+                    print('\n')
+                step_accuracy = self.get_batch_accuracy(pred, padded_label, sentences_length)
                 n_step += 1
                 accuracy += step_accuracy
-                tag_error_sum += tag_error
         accuracy /= n_step
-        np.set_printoptions(suppress=True)
-        print(tag_error_sum)
-        for i in range(9):
-            print("%d:%d" % (i, tag_error_sum[i][0] + tag_error_sum[i][1] + tag_error_sum[i][2] +
-                             tag_error_sum[i][3] + tag_error_sum[i][4] + tag_error_sum[i][5] +
-                             tag_error_sum[i][6] + tag_error_sum[i][7] + tag_error_sum[i][8] -
-                             tag_error_sum[i][i]))
         return accuracy
