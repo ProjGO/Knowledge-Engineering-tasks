@@ -171,7 +171,7 @@ def process_input(config, in_sentence):
     in_char_lv = []
     max_word_length = 0
     for word in in_sentence:
-        in_word_lv.append(config.word2idx.get(word, 0))
+        in_word_lv.append(config.word2idx.get(word.lower(), 0))
         chars_idx = []
         for char in word:
             chars_idx.append(config.char2idx[char])
