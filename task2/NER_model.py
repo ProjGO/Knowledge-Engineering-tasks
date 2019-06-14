@@ -157,7 +157,6 @@ class NERModel:
             for j in range(sentence_length[i]):
                 if batch_pred[i][j] == batch_label[i][j]:
                     true_pred += 1
-                else
 
         return true_pred / total_pred
 
@@ -219,7 +218,7 @@ class NERModel:
                 print("ready to predict")
                 in_sentence = input()
                 in_word_lv, sentence_length, in_char_lv, word_length = process_input(self.config, in_sentence)
-                #print(in_word_lv, sentence_length, in_char_lv, word_length)
+                # print(in_word_lv, sentence_length, in_char_lv, word_length)
                 pred = sess.run(self.batch_pred, feed_dict={self.input_word_idx_lv: in_word_lv,
                                                             self.input_char_idx_lv: in_char_lv,
                                                             self.sentence_length: sentence_length,
@@ -241,8 +240,8 @@ class NERModel:
             while not has_one_epoch:
                 has_one_epoch, batch_data, batch_label = self.test_dataset.get_one_batch()
                 sentences_length, padded_sentences_word_lv, word_lengths, \
-                padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
-                #print(padded_sentences_word_lv, padded_sentences_char_lv, sentences_length, word_lengths)
+                    padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
+                # print(padded_sentences_word_lv, padded_sentences_char_lv, sentences_length, word_lengths)
                 feed_dict = {
                     self.input_word_idx_lv: padded_sentences_word_lv,
                     self.input_char_idx_lv: padded_sentences_char_lv,
@@ -251,7 +250,7 @@ class NERModel:
                 if self.config.use_crf:
                     viterbi_sequences = []
                     logits, trans_params = sess.run([self.logits, self.trans_params], feed_dict=feed_dict)
-                    #logits = tf.reshape(batch_pred, [-1, self.config.batch_size, 9])
+                    # logits = tf.reshape(batch_pred, [-1, self.config.batch_size, 9])
                     for logit, sequence_length in zip(logits, sentences_length):
                         logit = logit[:sequence_length]
                         viterbi_seq, viterbi_score = tf.contrib.crf.viterbi_decode(logit, trans_params)
@@ -259,10 +258,10 @@ class NERModel:
                     pred = viterbi_sequences
                 else:
                     pred = sess.run(self.batch_pred, feed_dict=feed_dict)
-                #for i in range(self.config.batch_size):
-                   # print(pred[i])
-                    #print(padded_label[i])
-                    #print('\n')
+                # for i in range(self.config.batch_size):
+                    # print(pred[i])
+                    # print(padded_label[i])
+                    # print('\n')
                 step_accuracy = self.get_batch_accuracy(pred, padded_label, sentences_length)
                 n_step += 1
                 accuracy += step_accuracy
