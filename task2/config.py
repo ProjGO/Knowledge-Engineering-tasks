@@ -11,7 +11,7 @@ class Config:
     embedding_path = "../embeddings/word2vec_0.1.pkl"
     log_dir = "./log_dir"
 
-    lstm_layer = 1
+    lstm_layer = 1#3
 
     n_tags = 9
     state_dim = 200
@@ -24,11 +24,11 @@ class Config:
     word_embedding_trainable = True
     char_embedding_trainable = True
 
-    batch_size = 1
+    batch_size = 10#30
     validate_freq = 1000
     print_freq = 20
 
-    use_crf = False
+    use_crf = True
 
     log_dir_exist = False
 
