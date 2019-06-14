@@ -164,7 +164,7 @@ class NERModel:
 
     def train(self, num_epoch):
         if self.config.log_dir_exist:
-            # start_epoch, start_step = self.config.get_cur_epoch_and_step()
+            # start_epoch, start_step = self.config.get_cur_epoch_and_step() 》》》》》》》》》》》》》》》》》》》》》》
             start_epoch, start_step = 5, 700
             print("previous log_dir found")
         else:
