@@ -1,5 +1,6 @@
 import tensorflow as tf
 from task2.data_util import *
+import numpy as np
 from tensorflow.python import debug as tf_debug
 
 
@@ -9,7 +10,6 @@ class NERModel:
         self.train_dataset = train_dataset
         self.validate_dataset = validate_dataset
         self.test_dataset = test_dataset
-
         # 输入
         with tf.name_scope("Input"):
             # shape=[batch_size, max_sentence_length]
@@ -151,15 +151,18 @@ class NERModel:
     def get_batch_accuracy(batch_pred, batch_label, sentence_length):
         true_pred = 0
         total_pred = 0
+        tag_error = np.zeros((9,9))
         sentence_cnt = batch_label.shape[0]
         for i in range(sentence_cnt):
             total_pred += sentence_length[i]
             for j in range(sentence_length[i]):
                 if batch_pred[i][j] == batch_label[i][j]:
                     true_pred += 1
-                else
+                    tag_error[batch_pred[i][j]][batch_pred[i][j]] += 1
+                else:
+                    tag_error[batch_label[i][j]][batch_pred[i][j]] += 1
 
-        return true_pred / total_pred
+        return true_pred / total_pred, tag_error
 
     def train(self, num_epoch):
         if self.config.log_dir_exist:
@@ -220,10 +223,21 @@ class NERModel:
                 in_sentence = input()
                 in_word_lv, sentence_length, in_char_lv, word_length = process_input(self.config, in_sentence)
                 #print(in_word_lv, sentence_length, in_char_lv, word_length)
-                pred = sess.run(self.batch_pred, feed_dict={self.input_word_idx_lv: in_word_lv,
-                                                            self.input_char_idx_lv: in_char_lv,
-                                                            self.sentence_length: sentence_length,
-                                                            self.word_length: word_length})
+                feed_dict = {self.input_word_idx_lv: in_word_lv,
+                             self.input_char_idx_lv: in_char_lv,
+                             self.sentence_length: sentence_length,
+                             self.word_length: word_length}
+                if self.config.use_crf:
+                    viterbi_sequences = []
+                    logits, trans_params = sess.run([self.logits, self.trans_params], feed_dict=feed_dict)
+                    #logits = tf.reshape(batch_pred, [-1, self.config.batch_size, 9])
+                    for logit, sequence_length in zip(logits, sentence_length):
+                        logit = logit[:sequence_length]
+                        viterbi_seq, viterbi_score = tf.contrib.crf.viterbi_decode(logit, trans_params)
+                        viterbi_sequences += [viterbi_seq]
+                    pred = viterbi_sequences
+                else:
+                    pred = sess.run(self.batch_pred, feed_dict=feed_dict)
                 pred = pred[0]
                 pred_labels = []
                 for i in range(len(pred)):
@@ -236,6 +250,7 @@ class NERModel:
         accuracy = 0
         n_step = 0
         has_one_epoch = False
+        tag_error_sum = np.zeros((9, 9))
         with tf.Session() as sess:
             self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
             while not has_one_epoch:
@@ -263,8 +278,13 @@ class NERModel:
                    # print(pred[i])
                     #print(padded_label[i])
                     #print('\n')
-                step_accuracy = self.get_batch_accuracy(pred, padded_label, sentences_length)
+                step_accuracy,tag_error = self.get_batch_accuracy(pred, padded_label, sentences_length)
                 n_step += 1
                 accuracy += step_accuracy
+                tag_error_sum += tag_error
         accuracy /= n_step
+        np.set_printoptions(suppress=True)
+        print(tag_error_sum)
+        for i in range(9):
+            print("%d:%d" % (i, tag_error_sum[i][0]+tag_error_sum[i][1]+tag_error_sum[i][2]+tag_error_sum[i][3]+tag_error_sum[i][4]+tag_error_sum[i][5]+tag_error_sum[i][6]+tag_error_sum[i][7]+tag_error_sum[i][8]-tag_error_sum[i][i]))
         return accuracy
