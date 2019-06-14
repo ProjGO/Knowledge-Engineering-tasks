@@ -1,257 +1,103 @@
+import numpy as np
+import os
 import tensorflow as tf
-from task2.data_util import *
-from tensorflow.python import debug as tf_debug
 
 
-class NERModel:
-    def __init__(self, config, train_dataset, validate_dataset, test_dataset):
-        self.config = config
-        self.train_dataset = train_dataset
-        self.validate_dataset = validate_dataset
-        self.test_dataset = test_dataset
+from .data_util import Dataset
+from .data_util import pad_sequences
+from .general_utils import Progbar
+from .base_model import BaseModel
 
-        # 输入
-        with tf.name_scope("Input"):
-            # shape=[batch_size, max_sentence_length]
-            self.input_word_idx_lv = tf.placeholder(tf.int32, shape=[None, None],
-                                                    name="input_word_idx_lv")
-            # shape=[batch_size, max_sentence_length, max_word_length] max均指整个batch范围内
-            self.input_char_idx_lv = tf.placeholder(tf.int32, shape=[None, None, None],
-                                                    name="input_char_idx_lv")
-            # shape=[batch_size, max_sentence_length]
-            self.labels = tf.placeholder(tf.int32, shape=[None, None], name="input_label")
-            # shape=[batch_size]
-            self.sentence_length = tf.placeholder(tf.int32, shape=[None], name="setence_length")
-            # shape=[batch_size, max_sentence_length]
-            self.word_length = tf.placeholder(tf.int32, shape=[None, None], name="word_length")
 
-        # embedding
-        with tf.name_scope("Embedding"):
-            word_embedding_table = tf.Variable(initial_value=self.config.get_embedding_vec(),
-                                               trainable=self.config.word_embedding_trainable,
-                                               name="word_embedding_table", dtype=tf.float32)
-            char_embedding_table = tf.Variable(initial_value=tf.truncated_normal(shape=[256, self.config.char_embedding_dim], stddev=1),
-                                               trainable=self.config.char_embedding_trainable,
-                                               name="char_embedding_table", dtype=tf.float32)
-            input_word_vec_lv = tf.nn.embedding_lookup(word_embedding_table,
-                                                       self.input_word_idx_lv,
-                                                       name="input_word_vec_lv",)
-            input_char_vec_lv = tf.nn.embedding_lookup(char_embedding_table,
-                                                       self.input_char_idx_lv,
-                                                       name="input_char_vec_lv")
+class NERModel(BaseModel):
 
-        # LSTM
-        with tf.name_scope("LSTM"):
-            with tf.name_scope("char_lv"):
-                stacked_cell_fw = []
-                stacked_cell_bw = []
-                for i in range(self.config.lstm_layer):
-                    stacked_cell_fw.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
-                    stacked_cell_bw.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
-                mcell_fw = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_fw)
-                mcell_bw = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_bw)
-                '''char_fw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
-                                                            num_proj=self.config.output_dim,
-                                                            name="char_fw_lstm_cell")
-                char_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
-                                                            num_proj=self.config.output_dim,
-                                                            name="char_bw_lstm_cell")'''
-                s = tf.shape(input_char_vec_lv)
-                input_char_vec_lv = tf.reshape(input_char_vec_lv, shape=[s[0]*s[1], s[-2], self.config.char_embedding_dim])
-                reshaped_word_length = tf.reshape(self.word_length, shape=[s[0]*s[1]])
-                # (outputs, ((output_state_fw_c, output_state_fw_h), (output_state_bw_c, output_state_bw_h)))
-                '''_, ((_, output_state_fw_h), (_, output_state_bw_h)) \
-                    = tf.nn.bidirectional_dynamic_rnn(char_fw_lstm_cell, char_bw_lstm_cell,
-                                                      inputs=input_char_vec_lv,
-                                                      sequence_length=reshaped_word_length,
-                                                      dtype=tf.float32)'''
-                _, (output_state_fw_h, output_state_bw_h) \
-                    = tf.nn.bidirectional_dynamic_rnn(mcell_fw, mcell_bw,
-                                                      inputs=input_char_vec_lv,
-                                                      sequence_length=reshaped_word_length,
-                                                      dtype=tf.float32)
-                (_, output_state_fw_h) = output_state_fw_h[self.config.lstm_layer-1]
-                (_, output_state_bw_h) = output_state_bw_h[self.config.lstm_layer-1]
-                char_lstm_output = tf.reshape(tf.concat([output_state_fw_h, output_state_bw_h], axis=-1), shape=[s[0], s[1], 2*self.config.output_dim])
-                input_word_vec_lv = tf.concat([input_word_vec_lv, char_lstm_output], axis=-1)
-            with tf.name_scope("word_lv"):
-                stacked_cell_fw_word_lv = []
-                stacked_cell_bw_word_lv = []
-                for i in range(self.config.lstm_layer):
-                    stacked_cell_fw_word_lv.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
-                    stacked_cell_bw_word_lv.append(tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim))
-                mcell_fw_word_lv = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_fw_word_lv)
-                mcell_bw_word_lv = tf.nn.rnn_cell.MultiRNNCell(stacked_cell_bw_word_lv)
-                word_fw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
-                                                            num_proj=self.config.output_dim,
-                                                            name="word_fw_lstm_cell")
-                word_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
-                                                            num_proj=self.config.output_dim,
-                                                            name="word_bw_lstm_cell")
-                '''(output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(mcell_fw_word_lv, mcell_bw_word_lv,
-                                                                            inputs=input_word_vec_lv,
-                                                                            sequence_length=self.sentence_length,
-                                                                            dtype=tf.float32)
-                output_fw = output_fw[self.config.lstm_layer-1]
-                output_bw = output_bw[self.config.lstm_layer-1]
-                word_lstm_output = tf.concat([output_fw, output_bw], axis=-1)'''
-                (word_lstm_output, _, _) = \
-                    tf.contrib.rnn.stack_bidirectional_dynamic_rnn(stacked_cell_fw_word_lv, stacked_cell_bw_word_lv,
-                                                                   inputs=input_word_vec_lv,
-                                                                   sequence_length=self.sentence_length,
-                                                                   dtype=tf.float32)
-        # fc
-        with tf.name_scope("full_connect"):
-            w = tf.Variable(initial_value=tf.truncated_normal(shape=[2*self.config.output_dim, self.config.n_tags]),
-                            dtype=tf.float32, name="w")
-            b = tf.Variable(initial_value=tf.truncated_normal(shape=[self.config.n_tags]),
-                            dtype=tf.float32, name="b")
-            word_lstm_output = tf.reshape(word_lstm_output, shape=[-1, 2*self.config.output_dim])
-            logits = tf.add(tf.matmul(word_lstm_output, w), b)
-            s = tf.shape(self.input_word_idx_lv)
-            logits = tf.reshape(logits, shape=[s[0], s[1], self.config.n_tags])
+    def __init__(self, config):
+        super(NERModel, self).__init__(config)
 
-        # loss
-        with tf.name_scope("loss"):
-            if self.config.use_crf:
-                log_likelihood, trans_params = tf.contrib.crf.crf_log_likelihood(
-                    logits, self.labels, self.sentence_length)
-                self.trans_params = trans_params
-                self.loss = tf.reduce_mean(-log_likelihood)
-            else:
-                losses = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                    logits=logits, labels=self.labels)
-                mask = tf.sequence_mask(self.sentence_length, tf.shape(self.input_word_idx_lv)[1])
-                losses = tf.boolean_mask(losses, mask)
-                self.loss = tf.reduce_mean(losses)
+    def add_placeholders(self):
+        #词id
+        self.word_ids = tf.placeholder(tf.int32, shape=[None,None])
+        #句子长度
+        self.sequence_lengths = tf.placeholder(tf.int32, shape=[None])
+        #字母id
+        self.char_ids = tf.placeholder(tf.int32, shape=[None, None, None])
+        #单词长度
+        self.word_lengths = tf.placeholder(tf.int32, shape=[None, None])
+        #标签
+        self.labels = tf.placeholder(tf.int32,shape=[None,None])
+        #超参数
+        self.dropout = tf.placeholder(dtype=tf.float32, shape=[])
+        self.lr = tf.placeholder(dtype=tf.float32, shape=[])
 
-        # optimizer
-        with tf.name_scope("optimizer"):
-            # self.opt = tf.train.GradientDescentOptimizer(0.001).minimize(self.loss)
-            self.opt = tf.train.AdamOptimizer().minimize(self.loss)
-
-        # predict
-        with tf.name_scope("predict"):
-            # shape=[batch_size, max_sentence_len]
-            self.batch_pred = tf.cast(tf.argmax(logits, axis=-1), dtype=tf.int32)
-
-        # summary & saver & writer
-        self.step_loss_summary_ph = tf.placeholder(dtype=tf.float32)
-        self.step_accuracy_summary_ph = tf.placeholder(dtype=tf.float32)
-        step_loss_summary = tf.summary.scalar("step_loss", self.step_loss_summary_ph)
-        step_accuracy_summary = tf.summary.scalar("step_accuracy", self.step_accuracy_summary_ph)
-        self.merged_summary = tf.summary.merge_all()
-        self.saver = tf.train.Saver()
-        self.init = tf.initialize_all_variables()
-
-        print("building graph successfully")
-
-    @staticmethod
-    def get_batch_accuracy(batch_pred, batch_label, sentence_length):
-        true_pred = 0
-        total_pred = 0
-        sentence_cnt = batch_label.shape[0]
-        for i in range(sentence_cnt):
-            total_pred += sentence_length[i]
-            for j in range(sentence_length[i]):
-                if batch_pred[i][j] == batch_label[i][j]:
-                    true_pred += 1
-        return true_pred / total_pred
-
-    def train(self, num_epoch):
-        if self.config.log_dir_exist:
-            # start_epoch, start_step = self.config.get_cur_epoch_and_step()
-            start_epoch, start_step = 5, 700
-            print("previous log_dir found")
+    def dict(self, words, labels=None, lr=None, dropout=None):
+        #感觉将向量化的词输入NER的关键应该是在这里，也许应该把输出分割一下，分别对应这里面的各个变量？
+        if self.config.use_chars:
+            char_ids, word_ids = zip(*words)
+            word_ids, sequence_lengths = pad_sequences(word_ids, 0)
+            char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0,nlevels=2)
         else:
-            start_epoch, start_step = 1, 1
-        cur_epoch = start_epoch
-        cur_step = start_step
-        accuracy_sum = 0
-        loss_sum = 0
-        with tf.Session() as sess:
-            if self.config.log_dir_exist:
-                self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
-            else:
-                self.init.run()
-            # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
-            summary_writer = tf.summary.FileWriter(self.config.log_dir, sess.graph)
-            while cur_epoch - start_epoch <= num_epoch:
-                cur_step += 1
-                has_one_epoch, batch_data, batch_label = self.train_dataset.get_one_batch()
-                sentences_length, padded_sentences_word_lv, word_lengths, \
-                    padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
-                if has_one_epoch:
-                    cur_epoch += 1
-                feed_dict = {self.input_word_idx_lv: padded_sentences_word_lv,
-                             self.sentence_length: sentences_length,
-                             self.input_char_idx_lv: padded_sentences_char_lv,
-                             self.word_length: word_lengths,
-                             self.labels: padded_label}
-                _, step_loss, batch_pred = sess.run([self.opt, self.loss, self.batch_pred],
-                                                    feed_dict=feed_dict)
+            word_ids, sequence_lengths = pad_sequences(words, 0)
+        feed = {self.word_ids: word_ids, self.sequence_lengths: sequence_lengths}
+        if self.config.use_chars:
+            feed[self.char_ids] = char_ids
+            feed[self.word_lengths] = word_lengths
+        labels, _ = pad_sequences(labels, 0)
+        feed[self.labels] = labels
+        feed[self.lr] = lr
+        feed[self.dropout] = dropout
+        return feed, sequence_lengths
 
-                step_accuracy = self.get_batch_accuracy(batch_pred, padded_label, sentences_length)
-                loss_sum += step_loss
-                accuracy_sum += step_accuracy
-                merged_summary = sess.run(self.merged_summary, feed_dict={self.step_loss_summary_ph: step_loss,
-                                                                          self.step_accuracy_summary_ph: step_accuracy})
-                summary_writer.add_summary(merged_summary, cur_step)
+    def word_embedding(self):
+        #得到词的向量表示？在已经做好的wordembedding上查询现有词？
+        L = tf.Variable(Dataset.get_embedding(Dataset), dtype=tf.float32,trainable=False)
+        pretrained_embeddings = tf.nn.embedding_lookup(L, self.word_ids)
+        #感觉是对字母做类似的事情，获得字母的向量表示
+        K = tf.get_variable(name="char_embeddings", dtype=tf.float32, shape=[300, self.config.dim_char])
+        char_embeddings = tf.nn.embedding_lookup(K, self.char_ids)
+        #这里我没太明白。。似乎是在为了能够使用dynamic_rnn而在调整向量的形状？
+        s = tf.shape(char_embeddings)
+        char_embeddings = tf.reshape(char_embeddings, shape=[-1, s[-2], s[-1]])
+        word_lengths = tf.reshape(self.word_lengths, shape=[-1])
+        #双向lstm
+        cell_fw = tf.contrib.rnn.LSTMCell(self.config.char_hidden_size, state_is_tuple=True)
+        cell_bw = tf.contrib.rnn.LSTMCell(self.config.char_hidden_size, state_is_tuple=True)
+        _, ((_, output_fw), (_, output_bw)) = tf.nn.bidirectional_dynamic_rnn(cell_fw,  cell_bw, char_embeddings, sequence_length=word_lengths-50,  dtype=tf.float32)
+        #拼起来获得lstm的输出
+        output = tf.concat([output_fw, output_bw], axis=-1)
+        char_rep = tf.reshape(output, shape=[-1, s[1], 2*self.config.char_hidden_size])
+        #字母的输出和词的输出拼起来得到最终的输出？
+        self.word_embeddings = tf.concat([pretrained_embeddings, char_rep], axis=-1)
 
-                if cur_step % self.config.print_freq == 0 and cur_step > 0:
-                    accuracy = accuracy_sum / self.config.print_freq
-                    loss = loss_sum / self.config.print_freq
-                    accuracy_sum = 0
-                    loss_sum = 0
-                    print("step %d, average loss: %f, average accuracy: %f" % (cur_step, loss, accuracy))
+    def logits(self):
+        #对每一个单词，应用lstm，获得包含上下文信息的输出
+        cell_fw = tf.contrib.rnn.LSTMCell(hidden_size)
+        cell_bw = tf.contrib.rnn.LSTMCell(hidden_size)
+        (output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, self.word_embeddings, sequence_length=sequence_lengths, dtype=tf.float32)
+        context_rep = tf.concat([output_fw, output_bw], axis=-1)
+        #每个词的得分向量s[i]=W·h+b（词s标记成第i个tag的得分）
+        W = tf.get_variable("W", shape=[2 * self.config.hidden_size, self.config.ntags], dtype=tf.float32)
+        b = tf.get_variable("b", shape=[self.config.ntags], dtype=tf.float32, initializer=tf.zeros_initializer())
+        ntime_steps = tf.shape(context_rep)[1]
+        context_rep_flat = tf.reshape(context_rep, [-1, 2 * self.config.hidden_size])
+        pred = tf.matmul(context_rep_flat, W) + b
+        self.scores = tf.reshape(pred, [-1, ntime_steps, ntags])
 
-            self.saver.save(sess, os.path.join(self.config.log_dir, "ner_model.ckpt"), global_step=cur_step)
-            self.config.write_config()
-            self.config.write_epoch_and_step(cur_epoch, cur_step)
+    def loss(self):
+        #计算损失
+        self.labels = tf.placeholder(tf.int32, shape=[None, None], name="labels")
+        log_likelihood, transition_params = tf.contrib.crf.crf_log_likelihood(self.scores, self.labels, self.sequence_lengths)
+        self.loss = tf.reduce_mean(-log_likelihood)
 
-    def predict_sentence(self):
-        with tf.Session() as sess:
-            self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
-            while True:
-                print("ready to predict")
-                in_sentence = input()
-                in_word_lv, sentence_length, in_char_lv, word_length = process_input(self.config, in_sentence)
-                print(in_word_lv, sentence_length, in_char_lv, word_length)
-                pred = sess.run(self.batch_pred, feed_dict={self.input_word_idx_lv: in_word_lv,
-                                                            self.input_char_idx_lv: in_char_lv,
-                                                            self.sentence_length: sentence_length,
-                                                            self.word_length: word_length})
-                pred = pred[0]
-                pred_labels = []
-                for i in range(len(pred)):
-                    pred_labels.append(self.config.idx2label[pred[i]])
-                print(pred)
-                print(pred_labels)
-                print('\n')
+    def predict(self,words):
+        #根据结果预测出对应的tag
+        labels_pred = tf.cast(tf.argmax(self.logits, axis=-1))
 
-    def test(self):
-        accuracy = 0
-        n_step = 0
-        has_one_epoch = False
-        with tf.Session() as sess:
-            self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
-            while not has_one_epoch:
-                has_one_epoch, batch_data, batch_label = self.test_dataset.get_one_batch()
-                sentences_length, padded_sentences_word_lv, word_lengths, \
-                padded_sentences_char_lv, padded_label = Dataset.batch_padding(batch_data, batch_label)
-                print(padded_sentences_word_lv, padded_sentences_char_lv, sentences_length, word_lengths)
-                feed_dict = {
-                    self.input_word_idx_lv: padded_sentences_word_lv,
-                    self.input_char_idx_lv: padded_sentences_char_lv,
-                    self.sentence_length: sentences_length,
-                    self.word_length: word_lengths}
-                pred = sess.run(self.batch_pred, feed_dict=feed_dict)
-                for i in range(self.config.batch_size):
-                    print(pred[i])
-                    print(padded_label[i])
-                    print('\n')
-                step_accuracy = self.get_batch_accuracy(pred, padded_label, sentences_length)
-                n_step += 1
-                accuracy += step_accuracy
-        accuracy /= n_step
-        return accuracy
+    def build(self):
+        #似乎是运行的意思？
+        self.add_placeholders()
+        self.word_embedding()
+        self.logits()
+        #self.add_pred_op()
+        self.loss()
+        self.add_train_op(self.lr, self.loss, self.config.clip)
+        self.initialize_session()
