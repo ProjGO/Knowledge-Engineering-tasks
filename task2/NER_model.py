@@ -278,7 +278,7 @@ class NERModel:
                    # print(pred[i])
                     #print(padded_label[i])
                     #print('\n')
-                step_accuracy,tag_error = self.get_batch_accuracy(pred, padded_label, sentences_length)
+                step_accuracy, tag_error = self.get_batch_accuracy(pred, padded_label, sentences_length)
                 n_step += 1
                 accuracy += step_accuracy
                 tag_error_sum += tag_error
