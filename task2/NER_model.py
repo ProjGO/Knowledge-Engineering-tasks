@@ -56,8 +56,9 @@ class NERModel:
                 char_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
                                                             name="char_bw_lstm_cell")'''
-                s = tf.shape(input_char_vec_lv)
-                input_char_vec_lv = tf.reshape(input_char_vec_lv, shape=[s[0]*s[1], s[-2], self.config.char_embedding_dim])
+                s = tf.shape(input_char_vec_lv)  # s=[batch_size, max_sentence_length, max_word_length, char_embedding_dim]
+                input_char_vec_lv = tf.reshape(input_char_vec_lv,
+                                               shape=[s[0]*s[1], s[-2], self.config.char_embedding_dim])
                 reshaped_word_length = tf.reshape(self.word_length, shape=[s[0]*s[1]])
                 # (outputs, ((output_state_fw_c, output_state_fw_h), (output_state_bw_c, output_state_bw_h)))
                 '''_, ((_, output_state_fw_h), (_, output_state_bw_h)) \
@@ -65,13 +66,13 @@ class NERModel:
                                                       inputs=input_char_vec_lv,
                                                       sequence_length=reshaped_word_length,
                                                       dtype=tf.float32)'''
-                _, (output_state_fw_h, output_state_bw_h) \
+                _, (output_state_fw, output_state_bw) \
                     = tf.nn.bidirectional_dynamic_rnn(mcell_fw, mcell_bw,
                                                       inputs=input_char_vec_lv,
                                                       sequence_length=reshaped_word_length,
                                                       dtype=tf.float32)
-                (_, output_state_fw_h) = output_state_fw_h[self.config.lstm_layer-1]
-                (_, output_state_bw_h) = output_state_bw_h[self.config.lstm_layer-1]
+                (_, output_state_fw_h) = output_state_fw[self.config.lstm_layer-1]
+                (_, output_state_bw_h) = output_state_bw[self.config.lstm_layer-1]
                 char_lstm_output = tf.reshape(tf.concat([output_state_fw_h, output_state_bw_h], axis=-1), shape=[s[0], s[1], 2*self.config.output_dim])
                 input_word_vec_lv = tf.concat([input_word_vec_lv, char_lstm_output], axis=-1)
             with tf.name_scope("word_lv"):
@@ -164,8 +165,8 @@ class NERModel:
 
     def train(self, num_epoch):
         if self.config.log_dir_exist:
-            # start_epoch, start_step = self.config.get_cur_epoch_and_step() 》》》》》》》》》》》》》》》》》》》》》》
-            start_epoch, start_step = 5, 700
+            start_epoch, start_step = self.config.get_cur_epoch_and_step()  # 》》》》》》》》》》》》》》》》》》》》
+            # start_epoch, start_step = 5, 700
             print("previous log_dir found")
         else:
             start_epoch, start_step = 1, 1

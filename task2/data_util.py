@@ -183,4 +183,3 @@ def process_input(config, in_sentence):
         while len(in_char_lv[i]) < max_word_length:
             in_char_lv[i].append(0)
     return [in_word_lv], [sentence_length], [in_char_lv], [word_length]
-
