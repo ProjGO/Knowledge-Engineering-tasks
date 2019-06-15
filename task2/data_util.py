@@ -11,23 +11,24 @@ class Dataset:
     ch = chr(0)
     for i in range(256):
         char2idx[chr(ord(ch)+i)] = len(char2idx)
-    sentences = []  # 列表的列表,里面的每个列表是一句话,再里面是每个单词
-    idxed_sentences = []  # 将单词转换为输入embedding中的索引后的句子
-    char_idxed_sentences = []  # 将单词拆成字符编码表示
-    labels = []  # 列表的列表，对应着句子中的标签
-    idxed_labels = []  # 转换为对应编号后的标签
-    embedding = {}  # 预训练的word embedding, 格式word:vec,第一个是UNK(所有在embedding中找不到的都认为是UNK)
-    word2idx = {}  # word:index
-    idx2word = {}  # index:word
-    sentences_cnt = 0  # 一共有几句话
-    dataset_word_cnt = 0  # 一共有几个词
-
-    cur_idx = 0  # 下一个batch的开始是哪一句(sentences中的下标)
 
     def __init__(self, config, name):
         self.config = config
         self.name = name  # 数据集名称(train/validate/test)
         self.batch_size = config.batch_size
+
+        self.sentences = []  # 列表的列表,里面的每个列表是一句话,再里面是每个单词
+        self.idxed_sentences = []  # 将单词转换为输入embedding中的索引后的句子
+        self.char_idxed_sentences = []  # 将单词拆成字符编码表示
+        self.labels = []  # 列表的列表，对应着句子中的标签
+        self.idxed_labels = []  # 转换为对应编号后的标签
+        self.embedding = {}  # 预训练的word embedding, 格式word:vec,第一个是UNK(所有在embedding中找不到的都认为是UNK)
+        self.word2idx = {}  # word:index
+        self.idx2word = {}  # index:word
+        self.sentences_cnt = 0  # 一共有几句话
+        self.dataset_word_cnt = 0  # 一共有几个词
+
+        self.cur_idx = 0  # 下一个batch的开始是哪一句(sentences中的下标)
 
         # 读入原始数据
         sentence_buffer = []
