@@ -3,7 +3,7 @@ import numpy as np
 
 
 class EmbeddingDict:
-    def __int__(self, pkl_file_path):
+    def __init__(self, pkl_file_path):
         with open(pkl_file_path, "rb") as f:
             self.embedding = pickle.load(f)
         self.vocab = self.embedding.keys()

@@ -56,7 +56,8 @@ class NERModel:
                 char_bw_lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.state_dim,
                                                             num_proj=self.config.output_dim,
                                                             name="char_bw_lstm_cell")'''
-                s = tf.shape(input_char_vec_lv)  # s=[batch_size, max_sentence_length, max_word_length, char_embedding_dim]
+                # s=[batch_size, max_sentence_length, max_word_length, char_embedding_dim]
+                s = tf.shape(input_char_vec_lv)
                 input_char_vec_lv = tf.reshape(input_char_vec_lv,
                                                shape=[s[0]*s[1], s[-2], self.config.char_embedding_dim])
                 reshaped_word_length = tf.reshape(self.word_length, shape=[s[0]*s[1]])
