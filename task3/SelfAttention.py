@@ -14,16 +14,17 @@ output  shape=[batch_size, embedding_row_cnt, hidden_unit_num]
 '''
 
 
-def SelfAttentionEncoder(input_sentence_word_lv, input_sentence_lengths,
-                         lstm_output_dim, hidden_unit_num, embedding_row_cnt, name="attention_encoder"):
-    batch_size = tf.shape(input_sentence_word_lv)[0]
+def SelfAttentionEncoder(input_sentence_word_vec_lv, input_sentence_lengths,
+                         lstm_output_dim, hidden_unit_num, attention_hop, name="attention_encoder"):
+    s = tf.shape(input_sentence_word_vec_lv)
+    batch_size = s[0]
     # batch_size = 3
     # graph
     with tf.name_scope(name):
         # input
         with tf.name_scope("Input"):
             # shape = [batch_size, sentence_length, word_embedding_dim]
-            input_sentence_word_lv = input_sentence_word_lv
+            input_sentence_word_vec_lv = input_sentence_word_vec_lv
             # shape = [None]
             input_sentence_lengths = input_sentence_lengths
 
@@ -33,18 +34,17 @@ def SelfAttentionEncoder(input_sentence_word_lv, input_sentence_lengths,
             lstm_cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=lstm_output_dim)
             (outputs_fw, outputs_bw), _ = \
                 tf.nn.bidirectional_dynamic_rnn(lstm_cell_fw, lstm_cell_bw,
-                                                inputs=input_sentence_word_lv,
+                                                inputs=input_sentence_word_vec_lv,
                                                 sequence_length=input_sentence_lengths,
                                                 dtype=tf.float32)
-            lstm_outputs = tf.concat([outputs_fw[0], outputs_bw[0]], axis=-1)
-            s = tf.shape(input_sentence_word_lv)
+            lstm_outputs = tf.concat([outputs_fw, outputs_bw], axis=-1)
             lstm_outputs = tf.reshape(lstm_outputs, shape=[s[0], s[1], 2*lstm_output_dim])
 
         # weights
         with tf.variable_scope("Weights", reuse=tf.AUTO_REUSE):
             ws1 = tf.get_variable(dtype=tf.float32, shape=[hidden_unit_num, 2 * lstm_output_dim], name="Ws1",
                                   initializer=tf.truncated_normal_initializer())
-            ws2 = tf.get_variable(dtype=tf.float32, shape=[embedding_row_cnt, hidden_unit_num], name="Ws2",
+            ws2 = tf.get_variable(dtype=tf.float32, shape=[attention_hop, hidden_unit_num], name="Ws2",
                                   initializer=tf.truncated_normal_initializer())
 
         # attention
@@ -66,6 +66,6 @@ def SelfAttentionEncoder(input_sentence_word_lv, input_sentence_lengths,
         # penalization
         with tf.name_scope("Penalization"):
             penalization = tf.norm(tf.subtract(tf.matmul(attention, attention, transpose_b=True),
-                                               tf.eye(num_rows=embedding_row_cnt)), ord="euclidean")
+                                               tf.eye(num_rows=attention_hop)), ord="euclidean")
         
         return output, penalization

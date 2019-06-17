@@ -182,7 +182,7 @@ class NERModel:
                 self.init.run()
             # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
             summary_writer = tf.summary.FileWriter(self.config.log_dir, sess.graph)
-            while cur_epoch - start_epoch <= num_epoch:
+            while cur_epoch - start_epoch < num_epoch:
                 cur_step += 1
                 has_one_epoch, batch_data, batch_label = self.train_dataset.get_one_batch()
                 sentences_length, padded_sentences_word_lv, word_lengths, \
@@ -197,7 +197,7 @@ class NERModel:
                 _, step_loss, batch_pred = sess.run([self.opt, self.loss, self.batch_pred],
                                                     feed_dict=feed_dict)
 
-                step_accuracy = self.get_batch_accuracy(batch_pred, padded_label, sentences_length)
+                step_accuracy, _ = self.get_batch_accuracy(batch_pred, padded_label, sentences_length)
                 loss_sum += step_loss
                 accuracy_sum += step_accuracy
                 merged_summary = sess.run(self.merged_summary, feed_dict={self.step_loss_summary_ph: step_loss,

@@ -115,10 +115,9 @@ class Dataset:
             sentences2_in_word[i] = list(sentences2_in_word[i])
             while len(sentences2_in_word[i]) < max_sentence_len:
                 sentences2_in_word[i].append(pad_tok)
-        for i in range(len(in_batch_label)):
-            while(len(in_batch_label[i])) < max_sentence_len:
-                in_batch_label[i].append(pad_tok)
         padded_sentences1_word_lv = np.array(sentences1_in_word)
         padded_sentences2_word_lv = np.array(sentences2_in_word)
-        padded_label = np.array(in_batch_label)
-        return sentences1_length, sentences2_length, padded_sentences1_word_lv, padded_sentences2_word_lv, padded_label
+        labels = []
+        for i in range(len(in_batch_label)):
+            labels.append(in_batch_label[i][0])
+        return sentences1_length, sentences2_length, padded_sentences1_word_lv, padded_sentences2_word_lv, labels
