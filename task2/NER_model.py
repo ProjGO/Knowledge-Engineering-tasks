@@ -250,7 +250,7 @@ class NERModel:
         accuracy = 0
         n_step = 0
         has_one_epoch = False
-        tag_error_sum = np.zeros((9, 9))
+        confusion_mat = np.zeros((9, 9))
         with tf.Session() as sess:
             self.saver.restore(sess, tf.train.latest_checkpoint(self.config.log_dir))
             while not has_one_epoch:
@@ -281,13 +281,11 @@ class NERModel:
                 step_accuracy, tag_error = self.get_batch_accuracy(pred, padded_label, sentences_length)
                 n_step += 1
                 accuracy += step_accuracy
-                tag_error_sum += tag_error
+                confusion_mat += tag_error
         accuracy /= n_step
-        np.set_printoptions(suppress=True)
-        print(tag_error_sum)
-        for i in range(9):
-            print("%d:%d" % (i, tag_error_sum[i][0] + tag_error_sum[i][1] + tag_error_sum[i][2] +
-                             tag_error_sum[i][3] + tag_error_sum[i][4] + tag_error_sum[i][5] +
-                             tag_error_sum[i][6] + tag_error_sum[i][7] + tag_error_sum[i][8] -
-                             tag_error_sum[i][i]))
-        return accuracy
+        '''for i in range(9):
+            print("%d:%d" % (i, confusion_mat[i][0] + confusion_mat[i][1] + confusion_mat[i][2] +
+                             confusion_mat[i][3] + confusion_mat[i][4] + confusion_mat[i][5] +
+                             confusion_mat[i][6] + confusion_mat[i][7] + confusion_mat[i][8] -
+                             confusion_mat[i][i]))'''
+        return accuracy, confusion_mat
