@@ -1,6 +1,7 @@
 import json
 import os
 import copy
+import string
 import numpy as np
 from task4.embedding_dict import EmbeddingDict
 
@@ -24,18 +25,13 @@ class Dataset:
         self.word2idx = {}
         self.idx2word = {}
         data = open(os.path.join(config.dataset_path, "snli_1.0_"+name + '.jsonl')).readlines()  # 打开json文件
-        # data = json.loads(data[0])
-        sentence1_buffer = []
-        sentence2_buffer = []
-        label_buffer = []
-        temp_data = []
         for i in range(0, len(data)):
             temp_data = json.loads(data[i])  # 每一句话先用json.loads变成字典
-            sentence1_buffer.append(temp_data["sentence1"])  # 取出第一句话
-            sentence2_buffer.append(temp_data["sentence2"])  # 取出第二句话
+            # sentence1_buffer.append(temp_data["sentence1"])  # 取出第一句话
+            # sentence2_buffer.append(temp_data["sentence2"])  # 取出第二句话
             self.sentences_cnt += 1
-            self.sentences1.append(sentence1_buffer)
-            self.sentences2.append(sentence2_buffer)
+            self.sentences1.append(temp_data["sentence1"])
+            self.sentences2.append(temp_data["sentence2"])
             self.labels.append(temp_data["gold_label"])  # 我个人理解gold_label应该是正确的关系，不太确定。。。
         print("Loading dataset %s done, %d sentences." % (self.name, self.sentences_cnt))
         self.convert_word_and_label_to_idx()  # 将词和标签转换为数字表示
@@ -47,16 +43,20 @@ class Dataset:
         self.idx2word = {idx: word for word, idx in zip(self.word2idx.keys(), self.word2idx.values())}
         unk_cnt = 0
         for sentence1, sentence2, label in zip(self.sentences1, self.sentences2, self.labels):
+            if label == "-":  # 直接删去标签为"-"的
+                continue
+            sentence1 = sentence1.strip(string.punctuation)
+            sentence2 = sentence2.strip(string.punctuation)
             cur_sentence1 = []
             cur_sentence2 = []
             cur_label = []
-            for word in sentence1:
+            for word in sentence1.split():
                 word = word.lower()
                 idx = self.word2idx.get(word, 0)
                 cur_sentence1.append(idx)
                 if idx == 0:
                     unk_cnt += 1
-            for word in sentence2:
+            for word in sentence2.split():
                 word = word.lower()
                 idx = self.word2idx.get(word, 0)
                 cur_sentence2.append(idx)
@@ -74,16 +74,13 @@ class Dataset:
         batch_data2 = []
         batch_label = []
         for i in range(self.batch_size):
-            if self.idxed_labels[self.cur_idx] == 3:
-                i -= 1
-                continue
+            self.cur_idx += 1
             cur_idxed_sentence1 = copy.deepcopy(self.idxed_sentences1[self.cur_idx])
             cur_idxed_sentence2 = copy.deepcopy(self.idxed_sentences2[self.cur_idx])
             cur_label = copy.deepcopy(self.idxed_labels[self.cur_idx])
             batch_data1.append(cur_idxed_sentence1)
             batch_data2.append(cur_idxed_sentence2)
             batch_label.append(cur_label)
-            self.cur_idx = self.cur_idx + 1
             if self.cur_idx == self.sentences_cnt - 1:
                 has_one_epoch = True
                 self.cur_idx = 0
