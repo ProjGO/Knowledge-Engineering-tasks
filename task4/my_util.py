@@ -2,6 +2,7 @@ import json
 import os
 import copy
 import numpy as np
+from task4.embedding_dict import EmbeddingDict
 
 class Dataset:
     label2idx = {"netural": 0, "entailment": 1, "contradiction": 2}  # 三种标签
@@ -39,7 +40,8 @@ class Dataset:
         self.convert_word_and_label_to_idx()  # 将词和标签转换为数字表示
 
     def convert_word_and_label_to_idx(self):  # 和task2基本一样，只是分别对两个句子做
-        self.embedding = self.config.get_embedding()
+        embedding = EmbeddingDict()
+        self.embedding = embedding.get_embedding_vec()
         self.word2idx = self.config.get_word2idx()
         self.idx2word = {idx: word for word, idx in zip(self.word2idx.keys(), self.word2idx.values())}
         unk_cnt = 0
