@@ -14,7 +14,7 @@ class Dataset:
 
     def __init__(self, config, name):
         self.config = config
-        self.name = name  # 数据集名称(train/validate/test)
+        self.name = name  # 数据集名称(train/validate/test.py)
         self.batch_size = config.batch_size
 
         self.sentences = []  # 列表的列表,里面的每个列表是一句话,再里面是每个单词
