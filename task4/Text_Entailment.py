@@ -37,13 +37,14 @@ class TextEntailmentModel:
                                                             name="input_prem_word_vec")
 
         # Self Attention Encoder
+        # Mh shape=[batch_size, attention_hop, 2*lstm_output_dim]
         Mh, penalization = \
-            SelfAttentionEncoder(input_hypo_word_vec_lv, self.input_hypo_lengths,
+            SelfAttentionEncoder(config, input_hypo_word_vec_lv, self.input_hypo_lengths,
                                  self.config.self_attention_lstm_output_dim,
                                  self.config.self_attention_hidden_unit_num,
                                  self.config.attention_hop)
         Mp, _ = \
-            SelfAttentionEncoder(input_prem_word_vec_lv, self.input_prem_lengths,
+            SelfAttentionEncoder(config, input_prem_word_vec_lv, self.input_prem_lengths,
                                  self.config.self_attention_lstm_output_dim,
                                  self.config.self_attention_hidden_unit_num,
                                  self.config.attention_hop)
@@ -83,15 +84,15 @@ class TextEntailmentModel:
             # b = tf.tile(b[None], [batch_size, 1])
             # Fr = tf.expand_dims(tf.layers.flatten(Fr), 1)
             Fr = tf.layers.flatten(Fr)
-            logits = tf.add(tf.matmul(Fr, w), b)[0]
+            logits = tf.add(tf.matmul(Fr, w), b)
             logits = tf.reshape(logits, shape=[batch_size, 3])
 
         with tf.name_scope("Predict"):
             self.batch_predict = tf.cast(tf.argmax(logits, axis=-1), dtype=tf.int8)
 
         with tf.name_scope("Loss"):
-            self.loss = \
-                tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=self.input_labels) + penalization
+            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=self.input_labels)
+            self.loss = tf.reduce_mean(losses) + penalization
 
         with tf.name_scope("Optimizer"):
             self.opt = tf.train.AdamOptimizer().minimize(self.loss)
@@ -140,15 +141,15 @@ class TextEntailmentModel:
                                                                           self.step_accuracy_summary_ph: step_accuracy})
                 summary_writer.add_summary(merged_summary, cur_step)
 
-                if cur_step % config.print_freq == 0 and cur_step > 0:
-                    accuracy = accuracy_sum / config.print_freq
-                    loss = loss_sum / config.print_freq
+                if cur_step % self.config.print_freq == 0 and cur_step > 0:
+                    accuracy = accuracy_sum / self.config.print_freq
+                    loss = loss_sum / self.config.print_freq
                     accuracy_sum = 0
                     loss_sum = 0
                     print("step %d, average loss: %f, average accuracy: %f" % (cur_step, loss, accuracy))
-            self.saver.save(sess, os.path.join(config.log_dir, "TextEntailment_model.ckpt"), global_step=cur_step)
-            config.write_config()
-            config.write_epoch_and_step(cur_epoch, cur_step)
+            self.saver.save(sess, os.path.join(self.config.log_dir, "TextEntailment_model.ckpt"), global_step=cur_step)
+            self.config.write_config()
+            self.config.write_epoch_and_step(cur_epoch, cur_step)
 
 
 if __name__ == "__main__":

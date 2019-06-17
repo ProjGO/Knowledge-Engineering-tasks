@@ -56,6 +56,3 @@ class Config:
         except IOError:
             return 1, 1
 
-
-
-

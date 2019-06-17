@@ -20,7 +20,8 @@ class Dataset:
         self.idxed_sentences2 = []
         self.idxed_labels = []
         self.labels = []
-        self.sentences_cnt = 0
+        self.total_sentences_cnt = 0
+        self.avaliable_sentence_cnt = 0  # 有实际标签(即不是"-")用例数
         self.embedding = {}
         self.word2idx = {}
         self.idx2word = {}
@@ -29,11 +30,11 @@ class Dataset:
             temp_data = json.loads(data[i])  # 每一句话先用json.loads变成字典
             # sentence1_buffer.append(temp_data["sentence1"])  # 取出第一句话
             # sentence2_buffer.append(temp_data["sentence2"])  # 取出第二句话
-            self.sentences_cnt += 1
+            self.total_sentences_cnt += 1
             self.sentences1.append(temp_data["sentence1"])
             self.sentences2.append(temp_data["sentence2"])
             self.labels.append(temp_data["gold_label"])  # 我个人理解gold_label应该是正确的关系，不太确定。。。
-        print("Loading dataset %s done, %d sentences." % (self.name, self.sentences_cnt))
+        print("Loading dataset %s done, %d sentences." % (self.name, self.total_sentences_cnt))
         self.convert_word_and_label_to_idx()  # 将词和标签转换为数字表示
 
     def convert_word_and_label_to_idx(self):  # 和task2基本一样，只是分别对两个句子做
@@ -45,6 +46,7 @@ class Dataset:
         for sentence1, sentence2, label in zip(self.sentences1, self.sentences2, self.labels):
             if label == "-":  # 直接删去标签为"-"的
                 continue
+            self.avaliable_sentence_cnt += 1
             sentence1 = sentence1.strip(string.punctuation)
             sentence2 = sentence2.strip(string.punctuation)
             cur_sentence1 = []
@@ -81,7 +83,7 @@ class Dataset:
             batch_data1.append(cur_idxed_sentence1)
             batch_data2.append(cur_idxed_sentence2)
             batch_label.append(cur_label)
-            if self.cur_idx == self.sentences_cnt - 1:
+            if self.cur_idx == self.avaliable_sentence_cnt - 1:
                 has_one_epoch = True
                 self.cur_idx = 0
         return has_one_epoch, batch_data1, batch_data2, batch_label

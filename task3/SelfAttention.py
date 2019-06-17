@@ -14,10 +14,10 @@ output  shape=[batch_size, embedding_row_cnt, hidden_unit_num]
 '''
 
 
-def SelfAttentionEncoder(input_sentence_word_vec_lv, input_sentence_lengths,
+def SelfAttentionEncoder(config, input_sentence_word_vec_lv, input_sentence_lengths,
                          lstm_output_dim, hidden_unit_num, attention_hop, name="attention_encoder"):
     s = tf.shape(input_sentence_word_vec_lv)
-    batch_size = s[0]
+    batch_size = config.batch_size
     # batch_size = 3
     # graph
     with tf.name_scope(name):
@@ -38,7 +38,7 @@ def SelfAttentionEncoder(input_sentence_word_vec_lv, input_sentence_lengths,
                                                 sequence_length=input_sentence_lengths,
                                                 dtype=tf.float32)
             lstm_outputs = tf.concat([outputs_fw, outputs_bw], axis=-1)
-            lstm_outputs = tf.reshape(lstm_outputs, shape=[s[0], s[1], 2*lstm_output_dim])
+            lstm_outputs = tf.reshape(lstm_outputs, shape=[batch_size, s[1], 2*lstm_output_dim])
 
         # weights
         with tf.variable_scope("Weights", reuse=tf.AUTO_REUSE):
