@@ -1,6 +1,3 @@
-import pickle
-
-
 class Config:
 
     pkl_file_path = "../embeddings/word2vec_0.1.pkl"
