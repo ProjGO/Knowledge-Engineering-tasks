@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+from task4.my_util import Dataset
+from task4.config import Config
 from tensorflow import keras as K
 
 if __name__ == "__main__":
@@ -14,7 +16,8 @@ if __name__ == "__main__":
     e = tf.Variable(initial_value=np.array([[3, 3], [4, 4]]))
 
     # cc = tf.matmul(aa, bb)
-
+    config = Config()
+    dataset = Dataset(config=config, name="test")
     with tf.Session() as sess:
         with tf.device("cpu:0"):
             tf.initialize_all_variables().run()
