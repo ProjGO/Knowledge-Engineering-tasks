@@ -8,8 +8,10 @@ import pickle
 import math
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import random
 
 start_idx = 0
+data_index = 0
 
 
 def word2vec():
@@ -23,7 +25,7 @@ def word2vec():
         raw_data = raw_data.split()
     print("Data size", len(raw_data))
     count = [('UNK', -1)]
-    count.extend(collections.Counter(raw_data).most_common(config.vocab_size))
+    count.extend(collections.Counter(raw_data).most_common(config.vocab_size-1))
     for word, _ in count:
         word2idx[word] = len(word2idx)
     idx2word = {idx: word for word, idx in zip(word2idx.keys(), word2idx.values())}
@@ -54,6 +56,34 @@ def word2vec():
             start_idx = start_idx + 1
         return _has_one_epoch, _inputs, _labels
 
+    def generate_batch_goo(batch_size=config.batch_size, num_skips=config.window_size, skip_window=config.window_size):
+        global data_index
+        assert batch_size % num_skips == 0
+        assert num_skips <= 2 * skip_window
+        batch = np.ndarray(shape=(batch_size), dtype=np.int32)
+        labels = np.ndarray(shape=(batch_size, 1), dtype=np.int32)
+        span = 2 * skip_window + 1  # [ skip_window target skip_window ]
+        buffer = collections.deque(maxlen=span)  # pylint: disable=redefined-builtin
+        if data_index + span > len(data):
+            data_index = 0
+        buffer.extend(data[data_index:data_index + span])
+        data_index += span
+        for i in range(batch_size // num_skips):
+            context_words = [w for w in range(span) if w != skip_window]
+            words_to_use = random.sample(context_words, num_skips)
+            for j, context_word in enumerate(words_to_use):
+                batch[i * num_skips + j] = buffer[skip_window]
+                labels[i * num_skips + j, 0] = buffer[context_word]
+            if data_index == len(data):
+                buffer.extend(data[0:span])
+                data_index = span
+            else:
+                buffer.append(data[data_index])
+                data_index += 1
+        # Backtrack a little bit to avoid skipping words in the end of a batch
+        data_index = (data_index + len(data) - span) % len(data)
+        return batch, labels
+
     valid_examples = np.random.choice(config.valid_window, config.valid_size, replace=False)
 
     graph = tf.Graph()
@@ -63,25 +93,23 @@ def word2vec():
             train_labels = tf.placeholder(tf.int32, shape=[config.batch_size, 1])
             validate_inputs = tf.constant(valid_examples, dtype=tf.int32)
         with tf.name_scope('vector_as_center_word'):
-            center_vec = tf.Variable(name='Vi',
-                                     initial_value=tf.random_uniform([config.vocab_size, config.embedding_size], -1.0, 1.0))
-            center_vec_embedding = tf.nn.embedding_lookup(center_vec, train_inputs)
+            center_vec = tf.Variable(
+                tf.random_uniform([config.vocab_size, config.embedding_size], -1.0, 1.0))
+            embed = tf.nn.embedding_lookup(center_vec, train_inputs)
         if config.has_Vo:
             with tf.name_scope('vector_as_context_word'):
-                # context_vec = tf.Variable(name='Vo',
-                #                         initial_value=tf.random.uniform([config.vocab_size, config.embedding_size]))
                 context_vec = tf.Variable(name='Vo',
                                           initial_value=tf.truncated_normal([config.vocab_size, config.embedding_size],
                                                                             stddev=1.0 / math.sqrt(config.embedding_size))
                                           )
-        biases = tf.Variable(tf.zeros([config.vocab_size]))
+        nce_biases = tf.Variable(tf.zeros([config.vocab_size]))
         with tf.name_scope('loss'):
             loss = tf.reduce_mean(
-                tf.nn.nce_loss(
+                tf.nn.sampled_softmax_loss(
                     weights=context_vec if config.has_Vo else center_vec,
-                    biases=biases,
+                    biases=nce_biases,
                     labels=train_labels,
-                    inputs=center_vec_embedding,
+                    inputs=embed,
                     num_sampled=config.num_sampled,
                     num_classes=config.vocab_size))
         with tf.name_scope('optimizer'):
@@ -108,6 +136,7 @@ def word2vec():
         saver = tf.train.Saver()
 
     num_steps = config.num_steps
+    # num_steps = 100000
     cur_step = 0
     cur_epoch = 0
     num_epoch = 3
@@ -126,8 +155,10 @@ def word2vec():
         print('Initialized')
 
         avg_loss = 0
-        while cur_epoch < num_epoch:
+        while cur_step < num_steps:
             has_one_epoch, batch_inputs, batch_labels = generate_batch()
+            # batch_inputs, batch_labels = generate_batch_goo()
+            # has_one_epoch = False
             cur_step += 1
             if has_one_epoch:
                 cur_epoch += 1
@@ -143,7 +174,7 @@ def word2vec():
 
             if cur_step % print_info_freq == 0 and cur_step > 0:
                 avg_loss /= print_info_freq
-                print('step: %d, Average loss for last %d steps: %f' % (cur_step, print_info_freq, avg_loss))
+                print('epoch: %d, step: %d, Average loss for last %d steps: %f' % (cur_epoch, cur_step, print_info_freq, avg_loss))
                 avg_loss = 0
 
             if cur_step % validate_freq == 0 and cur_step > 0:
@@ -188,7 +219,7 @@ def word2vec():
             ha='right',
             va='bottom'
         )
-    plt.savefig(os.path.join(config.get_output_dir(), 'tsne_%d.png' % num_steps))
+    plt.savefig(os.path.join(config.dir_output, 'tsne_%d.png' % num_steps))
 
 
 def main(argv):

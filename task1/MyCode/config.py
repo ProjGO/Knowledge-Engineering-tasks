@@ -2,13 +2,12 @@ import os
 
 
 class Config:
-    dir_input = "C:/Users/MagicStudio/OneDrive/课件/大二下/知识工程/work/datasets"
-    dir_output = "D:/ML/Ckpts/KnowledgeEngineering_task1/log_dir"
+    dir_input = "../../datasets"
+    dir_output = "../log_dir"
     dataset_name = "text8"
 
-    self.nchars = 300
     batch_size = 200
-    window_size = 5  # window_size words on each side
+    window_size = 1  # window_size words on each side
     embedding_size = 200
     num_sampled = 64
     vocab_size = 50000
@@ -16,9 +15,9 @@ class Config:
     valid_size = 10
     valid_window = 100
 
-    num_steps = 200000
+    num_steps = 300000
 
-    has_Vo = True  # 是在作为中心词和作为上下文时有两个向量表示
+    has_Vo = False  # 是在作为中心词和作为上下文时有两个向量表示
     using_Vi = True  # 是否使用作为中心词的词向量作为结果
     using_Vo = False  # 是否使用作为上下文的词向量作为结果, has_Vo=True时才可为True
     # 都为True时将直接拼接两种向量表示作为最终表示

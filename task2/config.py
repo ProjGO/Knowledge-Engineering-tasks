@@ -10,13 +10,13 @@ class Config:
     embedding_path = "../embeddings/word2vec_0.1.pkl"
     log_dir = "./log_dir"
 
-    lstm_layer = 1
+    lstm_layer = 3
 
     n_tags = 9
     state_dim = 200
     output_dim = 200
 
-    using_char_LSTM = False
+    using_char_LSTM = True
     word_embedding_dim = -1
     embedding_vocab_size = -1
     char_embedding_dim = 100

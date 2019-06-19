@@ -178,10 +178,10 @@ def word2vec_basic(log_dir):
             print(embeddings.name)
 
         # Construct the variables for the NCE loss
-        '''with tf.name_scope('weights'):
+        with tf.name_scope('weights'):
             nce_weights = tf.Variable(
                 tf.truncated_normal([vocabulary_size, embedding_size],
-                                    stddev=1.0 / math.sqrt(embedding_size)))'''
+                                    stddev=1.0 / math.sqrt(embedding_size)))
         with tf.name_scope('biases'):
             nce_biases = tf.Variable(tf.zeros([vocabulary_size]))
 
@@ -201,7 +201,7 @@ def word2vec_basic(log_dir):
                     num_classes=vocabulary_size))'''
             loss = tf.reduce_mean(
                 tf.nn.sampled_softmax_loss(
-                    weights=embeddings,
+                    weights=nce_weights,
                     biases=nce_biases,
                     labels=train_labels,
                     inputs=embed,
@@ -238,7 +238,7 @@ def word2vec_basic(log_dir):
         saver = tf.train.Saver()
 
     # Step 5: Begin training.
-    num_steps = 300001
+    num_steps = 100001
 
     with tf.Session(graph=graph) as session:
 
@@ -366,7 +366,7 @@ def main(unused_argv):
         '--log_dir',
         type=str,
         # default=os.path.join(current_path, 'D:\ML\Ckpts\KnowledgeEngineering_task1\log'),
-        default='D:/ML/Ckpts/KnowledgeEngineering_task1/log',
+        default='./log',
         help='The log directory for TensorBoard summaries.')
     flags, unused_flags = parser.parse_known_args()
     word2vec_basic(flags.log_dir)
