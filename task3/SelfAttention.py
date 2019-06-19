@@ -6,7 +6,7 @@ import tensorflow as tf
 input_sentences_word_lv: 嵌入后的句子表示，应为单句，shape=[1, sentence_length, word_embedding_dim]
 lstm_h_dim: 内部的lstm的输出dim
 hidden_unit_dim: 论文中的da
-embedding_row_cnt: 论文中的r，即注意力方面的数量
+attention_hop: 论文中的r，即注意力方面的数量
 
 
 输出：
@@ -20,9 +20,9 @@ def SelfAttentionEncoder(config, input_sentence_word_vec_lv, input_sentence_leng
     batch_size = config.batch_size
     # batch_size = 3
     # graph
-    with tf.name_scope(name):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         # input
-        with tf.name_scope("Input"):
+        with tf.variable_scope("Input"):
             # shape = [batch_size, sentence_length, word_embedding_dim]
             input_sentence_word_vec_lv = input_sentence_word_vec_lv
             # shape = [None]
@@ -46,9 +46,13 @@ def SelfAttentionEncoder(config, input_sentence_word_vec_lv, input_sentence_leng
                                   initializer=tf.truncated_normal_initializer())
             ws2 = tf.get_variable(dtype=tf.float32, shape=[attention_hop, hidden_unit_num], name="Ws2",
                                   initializer=tf.truncated_normal_initializer())
+            '''ws1 = tf.Variable(dtype=tf.float32, name="Ws1",
+                              initial_value=tf.truncated_normal(shape=[hidden_unit_num, 2 * lstm_output_dim]))
+            ws2 = tf.Variable(dtype=tf.float32, name="Ws2",
+                              initial_value=tf.truncated_normal(shape=[attention_hop, hidden_unit_num]))'''
 
         # attention
-        with tf.name_scope("Attention"):
+        with tf.variable_scope("Attention"):
             # [batch_size, hidden_unit_num, 2 * lstm_h_dim] * [batch_size, 2 * lstm_h_dim, sentence_length] =>
             # [batch_size, hidden_unit_num, sentence_length]
             ws1_h = tf.tanh(tf.matmul(tf.tile(ws1[None], [batch_size, 1, 1]), lstm_outputs, transpose_b=True))
@@ -58,13 +62,13 @@ def SelfAttentionEncoder(config, input_sentence_word_vec_lv, input_sentence_leng
             attention = tf.nn.softmax(attention, axis=-1)
 
         # output
-        with tf.name_scope("Output"):
+        with tf.variable_scope("Output"):
             # [batch_size, embedding_row_cnt, sentence_length] * [batch_size, sentence_length, 2 * lstm_output_dim] =>
             # [batch_size, embedding_row_cnt, 2 * lstm_output_dim]
             output = tf.matmul(attention, lstm_outputs)
 
         # penalization
-        with tf.name_scope("Penalization"):
+        with tf.variable_scope("Penalization", reuse=tf.AUTO_REUSE):
             penalization = tf.norm(tf.subtract(tf.matmul(attention, attention, transpose_b=True),
                                                tf.eye(num_rows=attention_hop)), ord="euclidean")
         

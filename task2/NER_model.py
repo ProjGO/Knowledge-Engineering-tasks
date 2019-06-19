@@ -168,7 +168,7 @@ class NERModel:
         if self.config.log_dir_exist:
             start_epoch, start_step = self.config.get_cur_epoch_and_step()  # 》》》》》》》》》》》》》》》》》》》》
             # start_epoch, start_step = 5, 700
-            print("previous log_dir found")
+            print("previous log_dir_single_FC found")
         else:
             start_epoch, start_step = 1, 1
         cur_epoch = start_epoch

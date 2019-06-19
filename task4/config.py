@@ -5,19 +5,20 @@ class Config:
 
     pkl_file_path = "../embeddings/word2vec_0.1.pkl"
     dataset_path = "../datasets/SNLI_1.0/"
-    log_dir = "./log_dir"
+    log_dir = "./log_dir_batchsize1"
 
-    self_attention_lstm_output_dim = 150
-    self_attention_hidden_unit_num = 200
-    attention_hop = 20
-
-    # 论文中的text entailment中把M变为F的tensor的除了r和2u以外的那一个维度
-    w_dim = 50
+    self_attention_lstm_output_dim = 300  # 300 in paper
+    self_attention_hidden_unit_num = 150  # 150 in paper
+    attention_hop = 30  # 30 in paper
+    penalization_coef = 0.3  # 0.3 in paper
+    w_dim = 200  # 论文中的text entailment中把M变为F的tensor的除了r和2u以外的那一个维度
+    MLP_hidden_unit_num = 2000  # 4000 in paper
 
     word_embedding_trainable = True
 
-    batch_size = 50
-    print_freq = 10
+    batch_size = 1
+    print_freq = 100  # steps
+    test_freq = 10000  # steps
 
     def __init__(self):
         self.ckpt_exists = False
