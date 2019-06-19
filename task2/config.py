@@ -1,7 +1,6 @@
 import pickle
 import numpy as np
 import os
-import json
 
 
 class Config:
@@ -17,7 +16,7 @@ class Config:
     state_dim = 200
     output_dim = 200
 
-    using_char_lstm = True
+    using_char_LSTM = False
     word_embedding_dim = -1
     embedding_vocab_size = -1
     char_embedding_dim = 100
@@ -25,7 +24,7 @@ class Config:
     char_embedding_trainable = True
 
     batch_size = 30  # 10
-    validate_freq = 1000
+    validate_freq = 500
     print_freq = 20
 
     use_crf = False
