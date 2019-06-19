@@ -1,7 +1,6 @@
 from task2.data_util import *
 from task2.config import Config
 from task2.NER_model import NERModel
-from task2.utils import *
 
 
 if __name__ == "__main__":
