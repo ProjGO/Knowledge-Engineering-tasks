@@ -10,7 +10,7 @@ class Config:
     embedding_path = "../embeddings/word2vec_0.1.pkl"
     log_dir = "./log_dir"
 
-    lstm_layer = 3
+    lstm_layer = 2
 
     n_tags = 9
     state_dim = 200
@@ -27,7 +27,7 @@ class Config:
     validate_freq = 500
     print_freq = 20
 
-    use_crf = False
+    use_crf = True
 
     log_dir_exist = False
 

@@ -7,7 +7,7 @@ import os
 filepath = '../../embeddings/'
 
 if __name__ == '__main__':
-    with open(os.path.join(filepath, 'word2vec_0.1.pkl'), 'rb') as f:
+    with open(os.path.join(filepath, 'word2vec_300000.pkl'), 'rb') as f:
         word2vec = pickle.load(f)
     vocab = word2vec.keys()
     word2id = {word: idx for idx, word in enumerate(vocab)}

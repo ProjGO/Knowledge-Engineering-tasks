@@ -1,6 +1,8 @@
 import tensorflow as tf
 from task2.data_util import *
+import task2.utils as utils
 import numpy as np
+import sklearn as sk
 # from tensorflow.python import debug as tf_debug
 
 
@@ -152,28 +154,13 @@ class NERModel:
 
         print("building graph successfully")
 
-    @staticmethod
-    def get_batch_accuracy(batch_pred, batch_label, sentence_length):
-        true_pred = 0
-        total_pred = 0
-        tag_error = np.zeros((9, 9))
-        sentence_cnt = batch_label.shape[0]
-        for i in range(sentence_cnt):
-            total_pred += sentence_length[i]
-            for j in range(sentence_length[i]):
-                if batch_pred[i][j] == batch_label[i][j]:
-                    true_pred += 1
-                tag_error[batch_label[i][j]][batch_pred[i][j]] += 1
-
-        return true_pred / total_pred, tag_error
-
     def train(self, num_epoch):
         if self.config.log_dir_exist:
             start_epoch, start_step = self.config.get_cur_epoch_and_step()  # 》》》》》》》》》》》》》》》》》》》》
             # start_epoch, start_step = 5, 700
             print("previous log_dir_single_FC found")
         else:
-            start_epoch, start_step = 1, 1
+            start_epoch, start_step = 0, 0
         cur_epoch = start_epoch
         cur_step = start_step
         accuracy_sum = 0
@@ -200,7 +187,7 @@ class NERModel:
                 _, step_loss, batch_pred = sess.run([self.opt, self.loss, self.batch_pred],
                                                     feed_dict=feed_dict)
 
-                step_accuracy, _ = self.get_batch_accuracy(batch_pred, padded_label, sentences_length)
+                step_accuracy, _ = utils.get_batch_accuracy(batch_pred, padded_label, sentences_length)
                 loss_sum += step_loss
                 accuracy_sum += step_accuracy
                 step_loss_and_acc = sess.run(self.merged_loss_and_acc,
@@ -258,17 +245,17 @@ class NERModel:
                     # print(pred[i])
                     # print(padded_label[i])
                     # print('\n')
-                step_accuracy, tag_error = self.get_batch_accuracy(pred, padded_label, sentences_length)
+                # pred, label = utils.concat_pred_and_labels(pred, batch_label, sentences_length)
+                # sk.metrics.classification.f1_score(label, pred)
+                step_accuracy, step_confusion_mat = utils.get_batch_accuracy(pred, padded_label, sentences_length)
                 n_step += 1
-                accuracy += step_accuracy
-                confusion_mat += tag_error
-        accuracy /= n_step
+                confusion_mat += step_confusion_mat
         '''for i in range(9):
             print("%d:%d" % (i, confusion_mat[i][0] + confusion_mat[i][1] + confusion_mat[i][2] +
                              confusion_mat[i][3] + confusion_mat[i][4] + confusion_mat[i][5] +
                              confusion_mat[i][6] + confusion_mat[i][7] + confusion_mat[i][8] -
                              confusion_mat[i][i]))'''
-        return accuracy, confusion_mat
+        return confusion_mat
 
     def validate(self, sess):
         accuracy = 0
