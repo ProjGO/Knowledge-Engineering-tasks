@@ -16,11 +16,10 @@ class Config:
     state_dim = 200
     output_dim = 200
 
-    using_char_LSTM = True
     word_embedding_dim = -1
     embedding_vocab_size = -1
     char_embedding_dim = 100
-    word_embedding_trainable = True
+
     char_embedding_trainable = True
 
     batch_size = 30  # 10
@@ -28,6 +27,8 @@ class Config:
     print_freq = 20
 
     use_crf = True
+    using_char_LSTM = True
+    word_embedding_trainable = True
 
     log_dir_exist = False
 
@@ -77,6 +78,7 @@ class Config:
         log_str += "state dim: %d\n" % self.state_dim
         log_str += "output dim: %d\n" % self.output_dim
         log_str += "RNN layer: %d\n" % self.lstm_layer
+        log_str += "CRF: %s\n" % "True" if self.use_crf else "False"
         with open(os.path.join(self.log_dir, "config.txt"), 'w') as f:
             f.write(log_str)
 

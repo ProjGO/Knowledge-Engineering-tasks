@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def print_confusion_mat(confusion_mat):
+def normalize_confusion_mat(confusion_mat):
     num_tags = np.shape(confusion_mat)[0]
     confusion_mat_normalized = np.zeros((num_tags, num_tags))
 
@@ -18,8 +18,8 @@ def print_confusion_mat(confusion_mat):
         true_pred += confusion_mat[i][i]
 
     np.set_printoptions(suppress=True, precision=4, linewidth=200)
-    print(confusion_mat_normalized)
-    print("accuracy: %f" % (true_pred / total_pred))
+    # print(confusion_mat_normalized)
+    # print("accuracy: %f" % (true_pred / total_pred))
 
     return confusion_mat_normalized
 
