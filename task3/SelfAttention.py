@@ -1,7 +1,6 @@
 import tensorflow as tf
 
 
-# class ttentionEncoder:
 '''
 input_sentences_word_lv: 嵌入后的句子表示，应为单句，shape=[1, sentence_length, word_embedding_dim]
 lstm_h_dim: 内部的lstm的输出dim

@@ -81,7 +81,7 @@ class TextEntailmentModel:
             # [batch_size, attention_hop, w_dim]
             Fr = tf.multiply(Fh, Fp, name="Fr")
 
-        with tf.name_scope("MLP"):
+        '''with tf.name_scope("MLP"):
             Fr = tf.layers.flatten(Fr)
             w1 = tf.Variable(initial_value=tf.truncated_normal(shape=[self.config.attention_hop*config.w_dim,
                                                                       self.config.MLP_hidden_unit_num]), name="w1")
@@ -94,9 +94,9 @@ class TextEntailmentModel:
             # b = tf.tile(b[None], [batch_size, 1])
             # Fr = tf.expand_dims(tf.layers.flatten(Fr), 1)
             logits = tf.add(tf.matmul(layer1, w2), b2)
-            logits = tf.reshape(logits, shape=[batch_size, 3])
+            logits = tf.reshape(logits, shape=[batch_size, 3])'''
 
-        '''with tf.name_scope("FC"):
+        with tf.name_scope("FC"):
             w = tf.Variable(initial_value=tf.truncated_normal(shape=[self.config.attention_hop * config.w_dim, 3]))
             b = tf.Variable(initial_value=tf.truncated_normal(shape=[3]))
             # w = tf.tile(w[None], [batch_size, 1, 1])
@@ -104,7 +104,7 @@ class TextEntailmentModel:
             # Fr = tf.expand_dims(tf.layers.flatten(Fr), 1)
             Fr = tf.layers.flatten(Fr)
             logits = tf.add(tf.matmul(Fr, w), b)
-            logits = tf.reshape(logits, shape=[batch_size, 3])'''
+            logits = tf.reshape(logits, shape=[batch_size, 3])
 
         with tf.name_scope("Predict"):
             self.batch_predict = tf.cast(tf.argmax(logits, axis=-1), dtype=tf.int8)

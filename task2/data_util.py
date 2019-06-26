@@ -49,7 +49,7 @@ class Dataset:
                     sentence_buffer.append(line[0])
                     label_buffer.append(line[3])
                     self.dataset_word_cnt += 1
-        print("Loading dataset %s done, %d sentences, %d words in total."
+        print("Dataset %s loaded, %d sentences, %d words in total."
               % (self.name, self.sentences_cnt, self.dataset_word_cnt))
 
         self.convert_word_and_label_to_idx()  # 将词和标签转换为数字表示

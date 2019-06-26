@@ -15,7 +15,7 @@ if __name__ == "__main__":
         sentences_length, padded_sentences_word_lv, padded_word_lengths, padded_sentences_char_lv, padded_label = \
             dataset.batch_padding(batch_data, batch_label)'''
     model = NERModel(config, train_dataset, validate_dataset, test_dataset)
-    model.train(5)
+    # model.train(5)
     confusion_mat = model.test()
     print(normalize_confusion_mat(confusion_mat))
     # model.predict_sentence()

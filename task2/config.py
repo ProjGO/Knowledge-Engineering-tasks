@@ -26,7 +26,7 @@ class Config:
     validate_freq = 500
     print_freq = 20
 
-    use_crf = True
+    use_crf = False
     using_char_LSTM = True
     word_embedding_trainable = True
 

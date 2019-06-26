@@ -1,4 +1,5 @@
-from task4.Text_Entailment import *
+from task4.Text_Entailment_SelfAttention import *
+from task4.Text_Entailment_LSTM import *
 
 if __name__ == "__main__":
     config = Config()
@@ -10,7 +11,8 @@ if __name__ == "__main__":
     prems_length, hypos_length, padded_prems_word_lv, padded_hypos_word_lv, padded_labels = \
         Dataset.batch_padding(batch_data_prem, batch_data_hypo, batch_label)'''
     model = TextEntailmentModel(config, word_embedding, dataset_train, dataset_valid, dataset_test)
-    model.train(3)
+    # model = TextEntailmentModelOnlyLSTM(config, word_embedding, dataset_train, dataset_valid, dataset_test)
+    model.train(epoch_num=2)
     accuracy, confusion_mat = model.test()
     # print(accuracy)
     # print(confusion_mat)
